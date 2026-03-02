@@ -16,41 +16,57 @@ async function cerrarPeriodo(periodoId) {
 
     console.log(`🕒 Cerrando automáticamente el periodo: ${periodo.descripcion}`);
 
-    // Verificar si hay calificaciones regulares (tablas normales)
-    const [inscripcionesRegulares] = await sequelize.query(`
-      SELECT COUNT(*) as total
-      FROM matriculas m
-      JOIN inscripciones i ON i.ID_matricula = m.ID
-      JOIN calificaciones_quimestrales cq ON i.ID = cq.ID_inscripcion
+    // validar que existan inscripciones con los dos quimestres completos
+    const [validasReg] = await sequelize.query(`
+      SELECT i.ID
+      FROM inscripciones i
+      JOIN matriculas m ON i.ID_matricula = m.ID
+      JOIN estudiantes e ON e.ID = m.ID_estudiante AND e.nivel NOT LIKE '%Básico Elemental%'
+      JOIN calificaciones_quimestrales cq ON cq.ID_inscripcion = i.ID
       WHERE m.ID_periodo_academico = ?
-      LIMIT 1
+      GROUP BY i.ID
+      HAVING COUNT(DISTINCT cq.quimestre) = 2
     `, { replacements: [periodoId] });
 
-    // Verificar si hay calificaciones de Básico Elemental (tablas _be)
-    const [inscripcionesBE] = await sequelize.query(`
-      SELECT COUNT(*) as total
-      FROM matriculas m
-      JOIN inscripciones i ON i.ID_matricula = m.ID
-      JOIN calificaciones_quimestrales_be cq ON i.ID = cq.ID_inscripcion
+    const [validasBE] = await sequelize.query(`
+      SELECT i.ID
+      FROM inscripciones i
+      JOIN matriculas m ON i.ID_matricula = m.ID
+      JOIN estudiantes e ON e.ID = m.ID_estudiante AND e.nivel LIKE '%Básico Elemental%'
+      JOIN calificaciones_quimestrales_be cq ON cq.ID_inscripcion = i.ID
       WHERE m.ID_periodo_academico = ?
-      LIMIT 1
+      GROUP BY i.ID
+      HAVING COUNT(DISTINCT cq.quimestre) = 2
     `, { replacements: [periodoId] });
 
-    if (inscripcionesRegulares[0].total === 0 && inscripcionesBE[0].total === 0) {
-      console.warn(`⚠️ No se puede cerrar el periodo ${periodoId}, no hay calificaciones`);
+    if (validasReg.length === 0 && validasBE.length === 0) {
+      console.warn(`⚠️ No se puede cerrar el periodo ${periodoId}, faltan calificaciones completas`);
       return;
     }
 
-    // Llamar al Stored Procedure correspondiente según el tipo de estudiante
-    if (inscripcionesRegulares[0].total > 0) {
-      console.log(`📊 Ejecutando sp_cerrar_periodo_regular para ${inscripcionesRegulares[0].total} estudiantes...`);
-      await sequelize.query('CALL sp_cerrar_periodo_regular(?)', { replacements: [periodoId] });
-    }
+    // ejecutar dentro de una transacción para que todo sea atómico
+    await sequelize.transaction(async (t) => {
+      if (validasReg.length > 0) {
+        console.log(`📊 Ejecutando sp_cerrar_periodo_regular para ${validasReg.length} estudiantes...`);
+        const [resultReg] = await sequelize.query('CALL sp_cerrar_periodo_regular(?)', {
+          replacements: [periodoId],
+          transaction: t
+        });
+        console.log('➤ Resumen periodo regular:', resultReg || '[sin resultado]');
+      }
 
-    if (inscripcionesBE[0].total > 0) {
-      console.log(`📊 Ejecutando sp_cerrar_periodo_basico para ${inscripcionesBE[0].total} estudiantes de Básico Elemental...`);
-      await sequelize.query('CALL sp_cerrar_periodo_basico(?)', { replacements: [periodoId] });
-    }
+      if (validasBE.length > 0) {
+        console.log(`📊 Ejecutando sp_cerrar_periodo_basico para ${validasBE.length} estudiantes de Básico Elemental...`);
+        const [resultBE] = await sequelize.query('CALL sp_cerrar_periodo_basico(?)', {
+          replacements: [periodoId],
+          transaction: t
+        });
+        console.log('➤ Resumen periodo básico:', resultBE || '[sin resultado]');
+      }
+
+      // marcar periodo como finalizado
+      await Periodo.update({ estado: 'Finalizado' }, { where: { ID: periodoId }, transaction: t });
+    });
 
     console.log(`✅ Periodo ${periodo.descripcion} cerrado exitosamente`);
 
@@ -100,5 +116,6 @@ function programarCierrePeriodo(periodoId, fechaFin) {
 
 module.exports = {
   programarCierrePeriodo,
-  reprogramarPeriodosPendientes
+  reprogramarPeriodosPendientes,
+  cerrarPeriodo
 };
