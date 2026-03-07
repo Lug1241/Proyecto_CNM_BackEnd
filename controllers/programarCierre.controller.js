@@ -16,38 +16,39 @@ async function cerrarPeriodo(periodoId) {
 
     console.log(`🕒 Cerrando automáticamente el periodo: ${periodo.descripcion}`);
 
-    // validar que existan inscripciones con los dos quimestres completos
-    const [validasReg] = await sequelize.query(`
-      SELECT i.ID
+    const [validacionSPRaw] = await sequelize.query('CALL sp_validar_notas_completas(?)', {
+      replacements: [periodoId]
+    });
+
+    const validacionSP = Array.isArray(validacionSPRaw) ? validacionSPRaw[0] : validacionSPRaw;
+
+    if (!validacionSP || Number(validacionSP.notas_completas) !== 1) {
+      console.warn(`⚠️ No se puede cerrar el periodo ${periodoId}, validación de notas incompleta`, validacionSP || {});
+      return;
+    }
+
+    const [totalesNivelRaw] = await sequelize.query(`
+      SELECT
+        SUM(CASE WHEN m.nivel COLLATE utf8mb4_unicode_ci NOT LIKE '%Básico Elemental%' THEN 1 ELSE 0 END) AS total_regular,
+        SUM(CASE WHEN m.nivel COLLATE utf8mb4_unicode_ci LIKE '%Básico Elemental%' THEN 1 ELSE 0 END) AS total_be
       FROM inscripciones i
       JOIN matriculas m ON i.ID_matricula = m.ID
-      JOIN estudiantes e ON e.ID = m.ID_estudiante AND e.nivel NOT LIKE '%Básico Elemental%'
-      JOIN calificaciones_quimestrales cq ON cq.ID_inscripcion = i.ID
       WHERE m.ID_periodo_academico = ?
-      GROUP BY i.ID
-      HAVING COUNT(DISTINCT cq.quimestre) = 2
     `, { replacements: [periodoId] });
 
-    const [validasBE] = await sequelize.query(`
-      SELECT i.ID
-      FROM inscripciones i
-      JOIN matriculas m ON i.ID_matricula = m.ID
-      JOIN estudiantes e ON e.ID = m.ID_estudiante AND e.nivel LIKE '%Básico Elemental%'
-      JOIN calificaciones_quimestrales_be cq ON cq.ID_inscripcion = i.ID
-      WHERE m.ID_periodo_academico = ?
-      GROUP BY i.ID
-      HAVING COUNT(DISTINCT cq.quimestre) = 2
-    `, { replacements: [periodoId] });
+    const totalesNivel = Array.isArray(totalesNivelRaw) ? totalesNivelRaw[0] : totalesNivelRaw;
+    const totalRegular = Number(totalesNivel?.total_regular || 0);
+    const totalBE = Number(totalesNivel?.total_be || 0);
 
-    if (validasReg.length === 0 && validasBE.length === 0) {
-      console.warn(`⚠️ No se puede cerrar el periodo ${periodoId}, faltan calificaciones completas`);
+    if (totalRegular === 0 && totalBE === 0) {
+      console.warn(`⚠️ No existen inscripciones en el periodo ${periodoId}`);
       return;
     }
 
     // ejecutar dentro de una transacción para que todo sea atómico
     await sequelize.transaction(async (t) => {
-      if (validasReg.length > 0) {
-        console.log(`📊 Ejecutando sp_cerrar_periodo_regular para ${validasReg.length} estudiantes...`);
+      if (totalRegular > 0) {
+        console.log(`📊 Ejecutando sp_cerrar_periodo_regular para ${totalRegular} inscripciones...`);
         const [resultReg] = await sequelize.query('CALL sp_cerrar_periodo_regular(?)', {
           replacements: [periodoId],
           transaction: t
@@ -55,8 +56,8 @@ async function cerrarPeriodo(periodoId) {
         console.log('➤ Resumen periodo regular:', resultReg || '[sin resultado]');
       }
 
-      if (validasBE.length > 0) {
-        console.log(`📊 Ejecutando sp_cerrar_periodo_basico para ${validasBE.length} estudiantes de Básico Elemental...`);
+      if (totalBE > 0) {
+        console.log(`📊 Ejecutando sp_cerrar_periodo_basico para ${totalBE} inscripciones de Básico Elemental...`);
         const [resultBE] = await sequelize.query('CALL sp_cerrar_periodo_basico(?)', {
           replacements: [periodoId],
           transaction: t
