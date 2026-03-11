@@ -15,7 +15,7 @@ const createPeriodo = async (req, res) => {
             return res.status(400).json({message: "La fecha fin debe ser mayor que la fecha de inicio"})
         }
         const result = await Periodo.create(periodo_academico)
-       //programarCierrePeriodo(result.ID,result.fecha_fin)
+       programarCierrePeriodo(result.ID, periodo_academico.fecha_fin)
         
        return res.status(201).json(result)
     } catch (error) {
@@ -62,7 +62,7 @@ const updatePeriodo= async (req, res)=>{
             return res.status(404).json({message: "Periodo no encontrada"})
         }
         const result= await Periodo.findByPk(id)
-        //programarCierrePeriodo(result.ID,result.fecha_fin)
+        programarCierrePeriodo(result.ID, periodo.fecha_fin)
         console.log("ESto se envia da la base al actualizar",result)
        return res.status(200).json(result)
     } catch (error) {
