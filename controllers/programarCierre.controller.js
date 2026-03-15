@@ -26,8 +26,19 @@ function convertirFecha(fechaStr) {
 }
 async function cerrarPeriodo(periodoId) {
   try {
-    const periodo = await Periodo.findByPk(periodoId);
+    const periodo = await Periodo.findByPk(periodoId, { raw: true });
     if (!periodo || periodo.estado === 'Finalizado') return;
+
+    const fechaFinPeriodo = convertirFecha(periodo.fecha_fin);
+    if (!fechaFinPeriodo || Number.isNaN(fechaFinPeriodo.getTime())) {
+      console.warn(`⚠️ No se puede cerrar periodo ${periodoId}: fecha_fin inválida (${periodo.fecha_fin})`);
+      return;
+    }
+
+    if (new Date() < fechaFinPeriodo) {
+      console.log(`⏳ Periodo ${periodoId} aún no vence (fecha_fin=${periodo.fecha_fin}), no se cierra.`);
+      return;
+    }
 
     console.log(`🕒 Cerrando automáticamente el periodo: ${periodo.descripcion}`);
 
