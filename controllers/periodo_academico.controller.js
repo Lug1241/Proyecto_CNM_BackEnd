@@ -2,6 +2,28 @@ const Periodo = require('../models/periodo_academico.model');
 const {programarCierrePeriodo} = require('./programarCierre.controller')
 const { Op, Sequelize } = require("sequelize");
 
+const parseFecha = (valor) => {
+    if (!valor) return null;
+
+    if (valor instanceof Date && !Number.isNaN(valor.getTime())) {
+        return valor;
+    }
+
+    if (typeof valor === 'string') {
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(valor)) {
+            const [dia, mes, anio] = valor.split('/').map(Number)
+            return new Date(anio, mes - 1, dia)
+        }
+
+        const fechaIso = new Date(valor)
+        if (!Number.isNaN(fechaIso.getTime())) {
+            return fechaIso
+        }
+    }
+
+    return null;
+}
+
 const createPeriodo = async (req, res) => {
     try {
         console.log(req.body)
@@ -11,11 +33,18 @@ const createPeriodo = async (req, res) => {
             return res.status(409).json({ message: "Error la periodo ya existe" })
         }
         console.log("este es el periodo a crear", periodo_academico)
-        if(periodo_academico.fecha_fin<=periodo_academico.fecha_inicio){
+        const fechaInicio = parseFecha(periodo_academico.fecha_inicio)
+        const fechaFin = parseFecha(periodo_academico.fecha_fin)
+
+        if (!fechaInicio || !fechaFin) {
+            return res.status(400).json({message: "Debe ingresar fechas válidas"})
+        }
+
+        if(fechaFin<=fechaInicio){
             return res.status(400).json({message: "La fecha fin debe ser mayor que la fecha de inicio"})
         }
         const result = await Periodo.create(periodo_academico)
-       //programarCierrePeriodo(result.ID,result.fecha_fin)
+       programarCierrePeriodo(result.ID, periodo_academico.fecha_fin)
         
        return res.status(201).json(result)
     } catch (error) {
@@ -54,7 +83,26 @@ const updatePeriodo= async (req, res)=>{
         const periodo = req.body
         const id= req.params.id
         console.log("este es el periodo a editar", periodo)
-        if(periodo.fecha_fin<=periodo.fecha_inicio){
+        const periodoActual = await Periodo.findByPk(id, { raw: true })
+        if (!periodoActual) {
+            return res.status(404).json({message: "Periodo no encontrada"})
+        }
+
+        if (periodoActual.estado === 'Finalizado' && periodo.estado === 'Activo') {
+            return res.status(409).json({ message: "Un periodo finalizado no puede volver a Activo" })
+        }
+
+        const fechaInicioFinal = periodo.fecha_inicio ?? periodoActual.fecha_inicio
+        const fechaFinFinal = periodo.fecha_fin ?? periodoActual.fecha_fin
+
+        const fechaInicio = parseFecha(fechaInicioFinal)
+        const fechaFin = parseFecha(fechaFinFinal)
+
+        if (!fechaInicio || !fechaFin) {
+            return res.status(400).json({message: "Debe ingresar fechas válidas"})
+        }
+
+        if(fechaFin<=fechaInicio){
             return res.status(400).json({message: "La fecha fin debe ser mayor que la fecha de inicio"})
         }
         const [updatedRows] = await Periodo.update(periodo,{where: {id}})
@@ -62,7 +110,9 @@ const updatePeriodo= async (req, res)=>{
             return res.status(404).json({message: "Periodo no encontrada"})
         }
         const result= await Periodo.findByPk(id)
-        //programarCierrePeriodo(result.ID,result.fecha_fin)
+        if (result.estado === 'Activo') {
+            programarCierrePeriodo(result.ID, result.fecha_fin)
+        }
         console.log("ESto se envia da la base al actualizar",result)
        return res.status(200).json(result)
     } catch (error) {
