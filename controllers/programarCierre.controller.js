@@ -5,9 +5,24 @@ const path = require('path');
 const Periodo = require('../models/periodo_academico.model')
 const { sequelize } = require('../config/sequelize.config')
 const { Op } = require("sequelize");
+const jobsPorPeriodo = new Map();
+
 function convertirFecha(fechaStr) {
+  if (fechaStr instanceof Date && !Number.isNaN(fechaStr.getTime())) {
+    return new Date(fechaStr.getFullYear(), fechaStr.getMonth(), fechaStr.getDate(), 23, 59, 59, 999);
+  }
+
+  if (typeof fechaStr !== 'string') return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) {
+    const [anio, mes, dia] = fechaStr.split('-').map(Number);
+    return new Date(anio, mes - 1, dia, 23, 59, 59, 999);
+  }
+
   const [dia, mes, anio] = fechaStr.split("/").map(Number);
-  return new Date(anio, mes - 1, dia); // mes - 1 porque en JS enero es 0
+  if (!dia || !mes || !anio) return null;
+
+  return new Date(anio, mes - 1, dia, 23, 59, 59, 999); // mes - 1 porque en JS enero es 0
 }
 async function cerrarPeriodo(periodoId) {
   try {
@@ -77,11 +92,14 @@ async function cerrarPeriodo(periodoId) {
 }
 
 async function reprogramarPeriodosPendientes() {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+
   const periodos = await Periodo.findAll({
     where: {
       estado: 'Activo',
       fecha_fin: {
-        [Op.lt]: new Date()
+        [Op.lt]: hoy
       }
     }
   });
@@ -96,7 +114,18 @@ async function reprogramarPeriodosPendientes() {
 }
 
 function programarCierrePeriodo(periodoId, fechaFin) {
-  const fecha = new Date(fechaFin);
+  const fecha = convertirFecha(fechaFin);
+
+  if (!fecha || Number.isNaN(fecha.getTime())) {
+    console.warn(`⚠️ No se programó cierre para periodo ${periodoId}: fecha_fin inválida (${fechaFin})`);
+    return;
+  }
+
+  const jobExistente = jobsPorPeriodo.get(periodoId);
+  if (jobExistente) {
+    jobExistente.cancel();
+    jobsPorPeriodo.delete(periodoId);
+  }
 
   if (fecha <= new Date()) {
     console.log(`⚠️ La fecha ya pasó, cerrando inmediatamente`);
@@ -105,10 +134,12 @@ function programarCierrePeriodo(periodoId, fechaFin) {
     return;
   }
 
-  schedule.scheduleJob(fecha, async () => {
+  const job = schedule.scheduleJob(fecha, async () => {
     await cerrarPeriodo(periodoId);
+    jobsPorPeriodo.delete(periodoId);
 
   });
+  jobsPorPeriodo.set(periodoId, job);
 
   console.log(`📅 Tarea programada para cerrar periodo ID ${periodoId} el ${fecha}`);
 }

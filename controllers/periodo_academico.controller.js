@@ -54,7 +54,19 @@ const updatePeriodo= async (req, res)=>{
         const periodo = req.body
         const id= req.params.id
         console.log("este es el periodo a editar", periodo)
-        if(periodo.fecha_fin<=periodo.fecha_inicio){
+        const periodoActual = await Periodo.findByPk(id)
+        if (!periodoActual) {
+            return res.status(404).json({message: "Periodo no encontrada"})
+        }
+
+        if (periodoActual.estado === 'Finalizado' && periodo.estado === 'Activo') {
+            return res.status(409).json({ message: "Un periodo finalizado no puede volver a Activo" })
+        }
+
+        const fechaInicioFinal = periodo.fecha_inicio ?? periodoActual.fecha_inicio
+        const fechaFinFinal = periodo.fecha_fin ?? periodoActual.fecha_fin
+
+        if(fechaFinFinal<=fechaInicioFinal){
             return res.status(400).json({message: "La fecha fin debe ser mayor que la fecha de inicio"})
         }
         const [updatedRows] = await Periodo.update(periodo,{where: {id}})
@@ -62,7 +74,9 @@ const updatePeriodo= async (req, res)=>{
             return res.status(404).json({message: "Periodo no encontrada"})
         }
         const result= await Periodo.findByPk(id)
-        programarCierrePeriodo(result.ID, periodo.fecha_fin)
+        if (result.estado === 'Activo') {
+            programarCierrePeriodo(result.ID, result.fecha_fin)
+        }
         console.log("ESto se envia da la base al actualizar",result)
        return res.status(200).json(result)
     } catch (error) {
