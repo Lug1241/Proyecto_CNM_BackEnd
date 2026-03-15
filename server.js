@@ -93,6 +93,9 @@ AllPassword(app)
 const AllFiles = require('./routes/downlodadFile.routes')
 AllFiles(app)
 
+const AllAlertas = require('./routes/alertas.routes')
+AllAlertas(app)
+
 reprogramarPeriodosPendientes()
 startServer();
 
