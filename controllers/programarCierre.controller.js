@@ -179,7 +179,7 @@ async function cerrarPeriodo(periodoId) {
       const ids = promociones.map(p => p.id).join(",");
 
       const updateNiveles = `
-    UPDATE estudiante
+    UPDATE estudiantes
     SET nivel = CASE ID
       ${caseNivel}
     END
@@ -192,6 +192,9 @@ async function cerrarPeriodo(periodoId) {
     } else {
       console.log(`📘 No hay estudiantes para promover.`);
     }
+
+    await Periodo.update({ estado: 'Finalizado' }, { where: { ID: periodoId } });
+    console.log(`✅ Periodo ${periodoId} marcado como Finalizado.`);
   }
   catch (err) {
     console.log("ocurrio un error durante el cierre del periodo: ", err)
