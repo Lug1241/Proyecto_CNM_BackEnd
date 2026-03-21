@@ -95,7 +95,8 @@ module.exports.updateParcialBE = async (req, res) => {
       evaluacion,
       mejoramiento,
       quimestre,
-      parcial
+      parcial,
+      ID_inscripcion
     } = req.body;
 
     const updateData = {};
@@ -105,16 +106,23 @@ module.exports.updateParcialBE = async (req, res) => {
     if (mejoramiento !== undefined) updateData.mejoramiento = mejoramiento;
     if (quimestre !== undefined) updateData.quimestre = quimestre;
     if (parcial !== undefined) updateData.parcial = parcial;
+    if (ID_inscripcion !== undefined) updateData.ID_inscripcion = ID_inscripcion;
 
+    // Intentar actualizar
     const [actualizados] = await Calificaciones_parciales_be.update(updateData, {
       where: { ID: id }
     });
 
+    let actualizado;
     if (actualizados === 0) {
-      return res.status(404).json({ message: "Parcial no encontrado o sin cambios" });
+      // Si no existe, crear uno nuevo (upsert)
+      actualizado = await Calificaciones_parciales_be.create({
+        ...updateData
+      });
+      return res.status(201).json(actualizado);
     }
 
-    const actualizado = await Calificaciones_parciales_be.findByPk(id);
+    actualizado = await Calificaciones_parciales_be.findByPk(id);
     return res.status(200).json(actualizado);
   } catch (error) {
     console.error("Error en updateParcialBE:", error);
