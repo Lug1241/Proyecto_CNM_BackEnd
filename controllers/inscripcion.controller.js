@@ -358,19 +358,72 @@ const getInscripcionesByMatricula = async (req, res) => {
 
         })
 
+        const toMin = (hora) => {
+            if (!hora) return null;
+            const [h, m] = hora.split(":").map(Number);
+            return h * 60 + m;
+        };
+
+        const obtenerRangoPorDia = (asignacion, dia) => {
+            const index = asignacion.dias.indexOf(dia);
+            if (index === -1) return null;
+
+            const tieneSegundoHorario = asignacion.hora1 && asignacion.hora2;
+
+            if (!tieneSegundoHorario) {
+                return {
+                    inicio: toMin(asignacion.horaInicio),
+                    fin: toMin(asignacion.horaFin),
+                    horaInicio: asignacion.horaInicio,
+                    horaFin: asignacion.horaFin
+                };
+            }
+
+            if (index === 0) {
+                return {
+                    inicio: toMin(asignacion.horaInicio),
+                    fin: toMin(asignacion.horaFin),
+                    horaInicio: asignacion.horaInicio,
+                    horaFin: asignacion.horaFin
+                };
+            }
+
+            if (index === 1) {
+                return {
+                    inicio: toMin(asignacion.hora1),
+                    fin: toMin(asignacion.hora2),
+                    horaInicio: asignacion.hora1,
+                    horaFin: asignacion.hora2
+                };
+            }
+
+            return null;
+        };
+
         // Aplanamos los datos de las inscripciones
         const inscripcionesFinal = inscripciones.map((inscripcion) => {
-            const inscripcionPlain = inscripcion.get({ plain: true }); // Convertimos la inscripción a un objeto plano
+            const inscripcionPlain = inscripcion.get({ plain: true });
 
-            // Aplanamos las asignaciones dentro de la inscripción
             if (inscripcionPlain.Asignacion) {
-                // Ya estamos trabajando con un objeto plano, no necesitamos llamar a get
                 const asignacionPlain = inscripcionPlain.Asignacion;
 
-                // Renombramos "materiaDetalle" a "Materia" si existe
                 if (asignacionPlain.materiaDetalle) {
                     asignacionPlain.Materia = asignacionPlain.materiaDetalle;
-                    delete asignacionPlain.materiaDetalle; // Eliminamos la propiedad materiaDetalle
+                    delete asignacionPlain.materiaDetalle;
+                }
+
+                if (asignacionPlain.dias && Array.isArray(asignacionPlain.dias) && asignacionPlain.dias.length === 2) {
+                    const primerDia = asignacionPlain.dias[0];
+                    const segundoDia = asignacionPlain.dias[1];
+                    const rango1 = obtenerRangoPorDia(asignacionPlain, primerDia);
+                    const rango2 = obtenerRangoPorDia(asignacionPlain, segundoDia);
+
+                    if (rango1 && rango2) {
+                        asignacionPlain.rangoPorDia = {
+                            [primerDia]: { horaInicio: rango1.horaInicio, horaFin: rango1.horaFin },
+                            [segundoDia]: { horaInicio: rango2.horaInicio, horaFin: rango2.horaFin }
+                        };
+                    }
                 }
 
                 inscripcionPlain.Asignacion = asignacionPlain;
@@ -378,8 +431,6 @@ const getInscripcionesByMatricula = async (req, res) => {
 
             return inscripcionPlain;
         });
-
-        console.log("estas son las inscripciones", inscripcionesFinal)
 
         return res.status(200).json(inscripcionesFinal)
     } catch (error) {
