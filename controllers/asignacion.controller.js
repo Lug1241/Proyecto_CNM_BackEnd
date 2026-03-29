@@ -539,7 +539,10 @@ const getAsignaciones = async (req, res) => {
 
           {
             model: Materia,
-            as: "materiaDetalle"
+            as: "materiaDetalle",
+            where: {
+              tipo: { [Op.ne]: "individual" }
+            },
           },
           { model: Docente },
           {
