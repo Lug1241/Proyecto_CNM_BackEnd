@@ -254,7 +254,7 @@ module.exports.DocenteANDReprsentante = async (req, res, next) => {
 
       req.user = user;
       req.user.rol = decoded.rol;
-      console.log("llego aca")
+
       return next();
     } catch (error) {
       console.error("Error en el middleware representante:", error.message);

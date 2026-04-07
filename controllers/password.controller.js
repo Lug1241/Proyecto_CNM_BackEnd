@@ -72,7 +72,7 @@ exports.requestPasswordReset = async (req, res) => {
 
 
 
-    console.log("llego aca")
+
 
     // Generar token y hash
     const token = crypto.randomBytes(32).toString('hex');
