@@ -302,3 +302,36 @@ module.exports.DocenteVicerrectorANDSecretaria = async (req, res, next) => {
 
   return res.status(401).json({ message: "No autorizado, token no encontrado" });
 }
+
+module.exports.validarPropietarioAsignacion = async (req, res, next) => {
+  let token;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+    try {
+      token = req.headers.authorization.split(" ")[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      const Asignacion = require("../models/asignacion.model");
+      const asignacion = await Asignacion.findByPk(req.params.id);
+
+      if (!asignacion) {
+        return res.status(404).json({ message: "Asignación no encontrada" });
+      }
+
+      if (decoded.subRol === "Administrador") {
+        return next();
+      }
+
+      if (asignacion.nroCedula_docente !== decoded.id) {
+        return res.status(403).json({ message: "No tienes permisos para modificar esta asignación" });
+      }
+
+      return next();
+    } catch (error) {
+      console.error("Error en validarPropietarioAsignacion:", error);
+      return res.status(401).json({ message: "Token inválido o expirado" });
+    }
+  }
+
+  return res.status(401).json({ message: "No autorizado, token no encontrado" });
+};
