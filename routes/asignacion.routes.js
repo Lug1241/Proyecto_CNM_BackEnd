@@ -1,10 +1,10 @@
 const AsignacionController = require('../controllers/asignacion.controller');
-const {Docente,DocenteANDReprsentante,docenteVicerrector,DocenteVicerrectorANDSecretaria,docenteAdministrador}=require('../middlewares/protect')
+const {Docente,DocenteANDReprsentante,docenteVicerrector,DocenteVicerrectorANDSecretaria,docenteAdministrador,validarPropietarioAsignacion}=require('../middlewares/protect')
 module.exports = (app) => {
     app.post('/api/asignacion/crear',Docente, AsignacionController.createAsignacion);
-    app.put('/api/asignacion/editar/:id',docenteAdministrador ,AsignacionController.updateAsignacion);
+    app.put('/api/asignacion/editar/:id',Docente, validarPropietarioAsignacion, AsignacionController.updateAsignacion);
     app.get('/api/asignacion/obtener/:id',DocenteANDReprsentante ,AsignacionController.getAsignacion);
-    app.delete('/api/asignacion/eliminar/:id',Docente ,AsignacionController.deleteAsignacion);
+    app.delete('/api/asignacion/eliminar/:id',Docente, validarPropietarioAsignacion, AsignacionController.deleteAsignacion);
     app.get('/api/asignacion/docente/:id_docente', DocenteANDReprsentante,AsignacionController.getAsignacionesPorDocente);
     app.get('/api/asignacion/nivel/:nivel/:periodo',docenteVicerrector,AsignacionController.getAsignacionesPorNivel)
     app.get('/api/asignacion/obtener/periodo/:periodo',DocenteVicerrectorANDSecretaria ,AsignacionController.getAsignaciones);
