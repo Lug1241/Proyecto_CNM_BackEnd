@@ -449,8 +449,14 @@ const getEstudiantesPorAsignacion = async (req, res) => {
                 attributes: ['nivel'],
                 include: [{
                     model: Estudiante,
-                    // Ajusta el nombre del PK real de tu modelo Estudiante (puede ser 'ID', 'id', etc.)
                     attributes: ['ID', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']
+                }]
+            }, {
+                model: Asignacion,
+                include: [{
+                    model: Materia,
+                    as: 'materiaDetalle',
+                    attributes: ['nivel']
                 }]
             }]
         });
@@ -460,7 +466,9 @@ const getEstudiantesPorAsignacion = async (req, res) => {
                 const est = insc.Matricula?.Estudiante;
                 if (!est) return null;
 
-                const nivel = insc.Matricula?.nivel || "";
+                // Fallback: si la matrícula viene sin nivel, usar el nivel de la materia de la asignación.
+                const nivel = insc.Matricula?.nivel || insc.Asignacion?.materiaDetalle?.nivel || "";
+
                 const nombreCompleto = [
                     est.primer_apellido,
                     est.segundo_apellido ?? '',
@@ -469,9 +477,7 @@ const getEstudiantesPorAsignacion = async (req, res) => {
                 ].join(' ');
 
                 return {
-                    // ID de la inscripción (clave para calificaciones)
                     idInscripcion: insc.ID,
-                    // ID del estudiante (por si lo necesitas también)
                     idEstudiante: est.ID,
                     nombreCompleto,
                     nivel
