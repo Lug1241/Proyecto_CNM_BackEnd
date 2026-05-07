@@ -343,6 +343,10 @@ const getInscripcionesByMatricula = async (req, res) => {
             },
             include:
                 [{
+                    model: Matricula,
+                    attributes: ['nivel']
+                },
+                {
                     model: Asignacion,
                     include: [
                         {
