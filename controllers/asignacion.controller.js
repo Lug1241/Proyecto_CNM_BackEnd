@@ -197,30 +197,62 @@ const updateAsignacion = async (req, res) => {
         }
       }
     });
-    console.log("me encontre a mi mismo", asignacionesDocente)
-
-    function tienenDiasSolapados(dias1, dias2) {
-      return dias1.some(dia => dias2.includes(dia));
+    function toMin(hora) {
+      if (!hora) return null;
+      const [h, m] = hora.split(":").map(Number);
+      return h * 60 + m;
     }
 
-    function tienenHorariosSolapados(horaInicioA, horaFinA, horaInicioB, horaFinB) {
-      return horaInicioA < horaFinB && horaFinA > horaInicioB;
+    function obtenerRangoPorDia(asignacion, dia) {
+      const index = asignacion.dias.indexOf(dia);
+      if (index === -1) return null;
+
+      const tieneSegundoHorario =
+        asignacion.hora1 &&
+        asignacion.hora2;
+
+      if (!tieneSegundoHorario) {
+        return {
+          inicio: toMin(asignacion.horaInicio),
+          fin: toMin(asignacion.horaFin)
+        };
+      }
+
+      if (index === 0) {
+        return {
+          inicio: toMin(asignacion.horaInicio),
+          fin: toMin(asignacion.horaFin)
+        };
+      }
+
+      if (index === 1) {
+        return {
+          inicio: toMin(asignacion.hora1),
+          fin: toMin(asignacion.hora2)
+        };
+      }
+
+      return null;
     }
 
-    // Primero, verifica si hay conflicto de días + horarios
+    function tienenHorariosSolapados(rangoA, rangoB) {
+      if (!rangoA || !rangoB) return false;
+      if (rangoA.inicio == null || rangoA.fin == null) return false;
+      if (rangoB.inicio == null || rangoB.fin == null) return false;
+      return rangoA.inicio < rangoB.fin && rangoA.fin > rangoB.inicio;
+    }
+
     const conflicto = asignacionesDocente.some(asig => {
-      const hayDiasSolapados = tienenDiasSolapados(asig.dias, asignacion.dias);
-      const hayHorarioSolapado = tienenHorariosSolapados(
-        asignacion.horaInicio,
-        asignacion.horaFin,
-        asig.horaInicio,
-        asig.horaFin
-      );
-      console.log("ffffff")
-      console.log("horas", hayHorarioSolapado)
-      return hayDiasSolapados && hayHorarioSolapado;
+      return asignacion.dias.some(dia => {
+        if (!asig.dias.includes(dia)) return false;
+
+        const rangoNueva = obtenerRangoPorDia(asignacion, dia);
+        const rangoExistente = obtenerRangoPorDia(asig, dia);
+
+        return tienenHorariosSolapados(rangoNueva, rangoExistente);
+      });
     });
-    console.log("que paso")
+
     if (conflicto) {
       return res.status(400).json({
         message: "El docente ya tiene una asignación con cruce de horario en los días seleccionados para este período."

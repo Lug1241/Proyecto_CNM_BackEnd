@@ -78,6 +78,37 @@ module.exports.docenteAdministrador = async (req, res, next) => {
 
   return res.status(401).json({ message: "No autorizado, token no encontrado" });
 }
+module.exports.docenteAdministradorOVicerrector = async (req, res, next) => {
+  let token;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+    try {
+      token = req.headers.authorization.split(" ")[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      if (decoded.rol !== "docente" || (decoded.subRol !== "Administrador" && decoded.subRol !== "Vicerrector")) {
+        return res.status(403).json({ message: "No autorizado, se requiere ser docente con subrol Administrador o Vicerrector" });
+      }
+
+      const user = await Docente.findOne({ where: { nroCedula: decoded.id }, attributes: { exclude: ["password"] } });
+      if (!user) {
+        return res.status(401).json({ message: "Usuario no autorizado" });
+      }
+
+      req.user = user;
+      req.user.rol = decoded.rol;
+      req.user.subRol = decoded.subRol;
+
+      return next();
+    } catch (error) {
+      console.error("Error en el middleware docenteAdministradorOVicerrector:", error);
+      return res.status(401).json({ message: "Token inválido o expirado" });
+    }
+  }
+
+  return res.status(401).json({ message: "No autorizado, token no encontrado" });
+};
+
 module.exports.Docente = async (req, res, next) => {
   let token;
 

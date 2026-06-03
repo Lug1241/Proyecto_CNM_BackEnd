@@ -164,7 +164,7 @@ const getDocentes = async (req, res) => {
                                     { [Op.like]: `%${term1}%` }
                                 ),
                                 Sequelize.where(
-                                    Sequelize.fn("LOWER", Sequelize.col("apellido")),
+                                    Sequelize.fn("LOWER", Sequelize.col("primer_apellido")),
                                     { [Op.like]: `%${term2}%` }
                                 )
                             ]
@@ -176,7 +176,7 @@ const getDocentes = async (req, res) => {
                                     { [Op.like]: `%${term2}%` }
                                 ),
                                 Sequelize.where(
-                                    Sequelize.fn("LOWER", Sequelize.col("apellido")),
+                                    Sequelize.fn("LOWER", Sequelize.col("primer_apellido")),
                                     { [Op.like]: `%${term1}%` }
                                 )
                             ]
@@ -192,7 +192,7 @@ const getDocentes = async (req, res) => {
                             { [Op.like]: `%${terms[0]}%` }
                         ),
                         Sequelize.where(
-                            Sequelize.fn("LOWER", Sequelize.col("apellido")),
+                            Sequelize.fn("LOWER", Sequelize.col("primer_apellido")),
                             { [Op.like]: `%${terms[0]}%` }
                         )
                     ]
