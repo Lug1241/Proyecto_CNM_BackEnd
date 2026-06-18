@@ -36,8 +36,8 @@ module.exports.login = async (req, res) => {
         // Verificar la password
         let isMatch = false;
         if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {
-            console.log("este es el password", password)
-            console.log("esto es lo que se almacena", user.password)
+            console.log("CONTRASENA DEL BODY:", JSON.stringify(password));
+            console.log("HASH DESDE LA BD:   ", JSON.stringify(user.password));
             isMatch = await bcrypt.compare(password, user.password);
         } else{
             isMatch = password === user.password;
