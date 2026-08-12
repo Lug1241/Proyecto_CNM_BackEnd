@@ -2,6 +2,7 @@
 const path = require("path");
 const Estudiante = require('../models/estudiante.model');
 const Representantes = require('../models/representante.model')
+const Matricula = require('../models/matricula.models')
 const { Op, Sequelize } = require("sequelize");
 const crearEstudiante = async (request, res) => {
     const usuario = request.body;
@@ -330,7 +331,71 @@ const getEstudiantesByNivel = async (request, response) => {
         return response.status(500).json({ message: 'Error al obtener los estudiantes en el servidor' });
     }
 }
-// const getEstudiantesByNombre = async(req,res)=>{
+const getEstudiantesByMatricula = async (request, response) => {
+    try {
+        const { nivel,idPeriodo } = request.params;
+        // Capturamos también el idPeriodo que enviaremos desde el front
+        let { page, limit } = request.query; 
+        
+        page = parseInt(page);
+        limit = parseInt(limit);
+
+        // Configuramos la condición de búsqueda para la tabla Matriculas
+        const matriculaInclude = {
+            model: Matricula, 
+            where: {
+                nivel: nivel,
+                // Validamos que exista idPeriodo para agregarlo al filtro histórico
+                ...(idPeriodo && { ID_periodo_academico: idPeriodo })
+            },
+            // Opcional: solo traer los campos necesarios de la matrícula para no saturar la respuesta
+            attributes: ['ID', 'nivel', 'ID_periodo_academico'] 
+        };
+
+        if (page && limit) {
+            const { count, rows: estudiantes } = await Estudiante.findAndCountAll({
+                limit,
+                offset: (page - 1) * limit,
+                include: [matriculaInclude],
+                distinct: true // ⚠️ CRUCIAL: Evita que Sequelize cuente mal los registros al usar includes con 'where'
+            });
+
+            return response.status(200).json({
+                data: estudiantes,
+                totalPages: Math.ceil(count / limit),
+                currentPage: page,
+                totalRows: count
+            });
+        }
+
+        // Búsqueda sin paginación
+        const estudiantes = await Estudiante.findAll({
+            include: [
+                matriculaInclude,
+                {
+                    model: Representantes,
+                    attributes: ["cedula_PDF", "croquis_PDF"]
+                }
+            ]
+        });
+
+        if (estudiantes.length === 0) {
+            return response.status(404).json({ message: "No se encontró ningún estudiante para este nivel y período." });
+        }
+
+        const result = estudiantes.map(estudiante => estudiante.get({ plain: true }));
+        return response.status(200).json(result);
+
+    } catch (error) {
+        console.log('Error al obtener todos los estudiantes:', error);
+        if (error.name === 'SequelizeValidationError') {
+            const mensajes = error.errors.map(err => err.message);
+            return response.status(400).json({ message: mensajes });
+        }
+        return response.status(500).json({ message: 'Error al obtener los estudiantes en el servidor' });
+    }
+    
+}
 
 // }
 
@@ -491,5 +556,6 @@ module.exports = {
     getEstudianteByCedula,
     getEstudiantesByNivel,
     verificarMatriculaIER,
-    getEstudiantesByApellido
+    getEstudiantesByApellido,
+    getEstudiantesByMatricula
 };

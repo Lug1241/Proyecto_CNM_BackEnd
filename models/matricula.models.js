@@ -44,5 +44,6 @@ Periodo_Academico.belongsToMany(Estudiante, { through: Matrícula, foreignKey: {
 
 // ✅ NUEVA relación necesaria para los include
 Matrícula.belongsTo(Estudiante, { foreignKey: 'ID_estudiante' });
+Estudiante.hasMany(Matrícula, { foreignKey: 'ID_estudiante' });
 
 module.exports = Matrícula
