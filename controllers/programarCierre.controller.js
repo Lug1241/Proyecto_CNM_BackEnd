@@ -290,7 +290,7 @@ function programarCierrePeriodo(periodoId, fechaFin) {
   const fecha = convertirFecha(fechaFin);
 
   if (!fecha || Number.isNaN(fecha.getTime())) {
-    await registrarLog(`⚠️ No se programó cierre para periodo ${periodoId}: fecha_fin inválida (${fechaFin})`, { archivo: "programarCierre.log" });
+    registrarLog(`⚠️ No se programó cierre para periodo ${periodoId}: fecha_fin inválida (${fechaFin})`, { archivo: "programarCierre.log" });
     return;
   }
 
@@ -301,7 +301,7 @@ function programarCierrePeriodo(periodoId, fechaFin) {
   }
 
   if (fecha <= new Date()) {
-    await registrarLog(`⚠️ La fecha ya pasó, cerrando inmediatamente`, { archivo: "programarCierre.log" });
+     registrarLog(`⚠️ La fecha ya pasó, cerrando inmediatamente`, { archivo: "programarCierre.log" });
     cerrarPeriodo(periodoId);
     return;
   }
@@ -312,7 +312,7 @@ function programarCierrePeriodo(periodoId, fechaFin) {
   });
   jobsPorPeriodo.set(periodoId, job);
 
-  await registrarLog(`📅 Tarea programada para cerrar periodo ID ${periodoId} el ${fecha}`,{archivo:"programarCierre.log"});
+   registrarLog(`📅 Tarea programada para cerrar periodo ID ${periodoId} el ${fecha}`,{archivo:"programarCierre.log"});
 }
 
 
