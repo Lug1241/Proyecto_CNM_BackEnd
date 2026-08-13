@@ -20,3 +20,6 @@ utils/generarHash.js
 
 node_modules/
 
+logs/
+*.log
+
