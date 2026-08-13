@@ -265,15 +265,11 @@ async function cerrarPeriodo(periodoId) {
 }
 
 async function reprogramarPeriodosPendientes() {
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
+  
 
   const periodos = await Periodo.findAll({
     where: {
       estado: 'Activo',
-      fecha_fin: {
-        [Op.lt]: hoy
-      }
     }
   });
   await registrarLog(`Periodos activos: ${JSON.stringify(periodos)}`, { archivo: "programarCierre.log" });
