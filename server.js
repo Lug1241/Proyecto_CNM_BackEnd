@@ -41,6 +41,7 @@ const startServer = async () => {
         // Una vez sincronizada, inicia el servidor
         const [results] = await sequelize.sequelize.query("SHOW TABLES");
         console.log("Tablas disponibles:", results);
+        await reprogramarPeriodosPendientes()
         app.listen(port, "0.0.0.0", () => {
             console.log("Server listening at port", port);
         });
@@ -96,6 +97,6 @@ AllFiles(app)
 const AllAlertas = require('./routes/alertas.routes')
 AllAlertas(app)
 
-reprogramarPeriodosPendientes()
+
 startServer();
 
