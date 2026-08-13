@@ -5,6 +5,7 @@ const path = require('path');
 const Periodo = require('../models/periodo_academico.model')
 const { sequelize } = require('../config/sequelize.config')
 const { Op } = require("sequelize");
+const { registrarLog } = require('../utils/registrarLogs');
 const jobsPorPeriodo = new Map();
 
 function convertirFecha(fechaStr) {
@@ -31,12 +32,12 @@ async function cerrarPeriodo(periodoId) {
 
     const fechaFinPeriodo = convertirFecha(periodo.fecha_fin);
     if (!fechaFinPeriodo || Number.isNaN(fechaFinPeriodo.getTime())) {
-      console.warn(`⚠️ No se puede cerrar periodo ${periodoId}: fecha_fin inválida (${periodo.fecha_fin})`);
+      await registrarLog(`⚠️ No se puede cerrar periodo ${periodoId}: fecha_fin inválida (${periodo.fecha_fin})`, { archivo: "programarCierre.log" });
       return;
     }
 
     if (new Date() < fechaFinPeriodo) {
-      console.log(`⏳ Periodo ${periodoId} aún no vence (fecha_fin=${periodo.fecha_fin}), no se cierra.`);
+      await registrarLog(`⏳ Periodo ${periodoId} aún no vence (fecha_fin=${periodo.fecha_fin}), no se cierra.`, { archivo: "programarCierre.log" });
       return;
     }
     const [inscripcionesValidas] = await sequelize.query(`
@@ -72,7 +73,7 @@ async function cerrarPeriodo(periodoId) {
       return;
     }
 
-    console.log(`🕒 Cerrando automáticamente el periodo: ${periodo.descripcion}`);
+    await registrarLog(`🕒 Cerrando automáticamente el periodo: ${periodo.descripcion}`, { archivo: "programarCierre.log" });
 
     const [inscripciones] = await sequelize.query(`
       SELECT 
@@ -142,8 +143,8 @@ async function cerrarPeriodo(periodoId) {
       WHERE m.ID_periodo_academico = ?
     `, { replacements: [periodoId] });
     
-    console.log("Cierre - Total inscripciones procesadas:", inscripciones.length);
-    console.log("Cierre - Primeras 3 inscripciones:", inscripciones.slice(0, 3));
+    await registrarLog(`Cierre - Total inscripciones procesadas: ${inscripciones.length}`, { archivo: "programarCierre.log" });
+    await registrarLog(`Cierre - Primeras 3 inscripciones: ${JSON.stringify(inscripciones.slice(0, 3))}`, { archivo: "programarCierre.log" });
     const agrupadasPorMatricula = {};
 
     for (const insc of inscripciones) {
@@ -157,7 +158,7 @@ async function cerrarPeriodo(periodoId) {
       const aprobada = nota >= 7 || (nota < 7 && recuperacion > 0 && recuperacion >= 7);
       
       // Log de debug
-      console.log(`Cierre - Estudiante ${insc.ID_estudiante}, Nivel: ${insc.nivel}, Inscripcion: ${insc.ID_inscripcion}, Nota: ${nota}, Supletorio: ${recuperacion}, Aprobada: ${aprobada}`);
+      await registrarLog(`Cierre - Estudiante ${insc.ID_estudiante}, Nivel: ${insc.nivel}, Inscripcion: ${insc.ID_inscripcion}, Nota: ${nota}, Supletorio: ${recuperacion}, Aprobada: ${aprobada}`, { archivo: "programarCierre.log" });
 
       if (!agrupadasPorMatricula[insc.ID_matricula]) {
         agrupadasPorMatricula[insc.ID_matricula] = {
@@ -175,7 +176,7 @@ async function cerrarPeriodo(periodoId) {
 
     for (const [id, data] of Object.entries(agrupadasPorMatricula)) {
       const todasAprobadas = data.inscripciones.every(item => item.aprobada);
-      console.log(`Cierre - Matricula ${id} (${data.nivel}), Total: ${data.inscripciones.length}, Aprobadas: ${data.inscripciones.filter(i => i.aprobada).length}, Estado: ${todasAprobadas ? 'Aprobado' : 'Reprobado'}`);
+      await registrarLog(`Cierre - Matricula ${id} (${data.nivel}), Total: ${data.inscripciones.length}, Aprobadas: ${data.inscripciones.filter(i => i.aprobada).length}, Estado: ${todasAprobadas ? 'Aprobado' : 'Reprobado'}`, { archivo: "programarCierre.log" });
       actualizaciones.push({
         ID_matricula: id,
         estado: todasAprobadas ? 'Aprobado' : 'Reprobado'
@@ -249,17 +250,17 @@ async function cerrarPeriodo(periodoId) {
   `;
 
       await sequelize.query(updateNiveles);
-      console.log(`🎓 Se promovieron ${promociones.length} estudiantes de nivel.`);
+      await registrarLog(`🎓 Se promovieron ${promociones.length} estudiantes de nivel.`,{archivo:"programarCierre.log"});
 
     } else {
-      console.log(`📘 No hay estudiantes para promover.`);
+      await registrarLog(`📘 No hay estudiantes para promover.`,{archivo: "programarCierre.log"});
     }
 
     await Periodo.update({ estado: 'Finalizado' }, { where: { ID: periodoId } });
-    console.log(`✅ Periodo ${periodoId} marcado como Finalizado.`);
+    await registrarLog(`✅ Periodo ${periodoId} marcado como Finalizado.`, { archivo: "programarCierre.log" });
   }
   catch (err) {
-    console.log("ocurrio un error durante el cierre del periodo: ", err)
+    await registrarLog("ocurrio un error durante el cierre del periodo: " + err.message, { archivo: "programarCierre.log" });
   }
 }
 
@@ -275,11 +276,11 @@ async function reprogramarPeriodosPendientes() {
       }
     }
   });
-  console.log("Periodos activos", periodos)
+  await registrarLog(`Periodos activos: ${JSON.stringify(periodos)}`, { archivo: "programarCierre.log" });
   const periodosPlain = periodos.map(periodo => {
     return periodo.get({ plain: true })
   })
-  console.log("estos son los periodos", periodosPlain)
+  await registrarLog(` estos son los periodos: ${JSON.stringify(periodosPlain)}`, { archivo: "programarCierre.log" });
   for (const periodo of periodos) {
     programarCierrePeriodo(periodo.ID, convertirFecha(periodo.fecha_fin));
   }
@@ -289,7 +290,7 @@ function programarCierrePeriodo(periodoId, fechaFin) {
   const fecha = convertirFecha(fechaFin);
 
   if (!fecha || Number.isNaN(fecha.getTime())) {
-    console.warn(`⚠️ No se programó cierre para periodo ${periodoId}: fecha_fin inválida (${fechaFin})`);
+    await registrarLog(`⚠️ No se programó cierre para periodo ${periodoId}: fecha_fin inválida (${fechaFin})`, { archivo: "programarCierre.log" });
     return;
   }
 
@@ -300,7 +301,7 @@ function programarCierrePeriodo(periodoId, fechaFin) {
   }
 
   if (fecha <= new Date()) {
-    console.log(`⚠️ La fecha ya pasó, cerrando inmediatamente`);
+    await registrarLog(`⚠️ La fecha ya pasó, cerrando inmediatamente`, { archivo: "programarCierre.log" });
     cerrarPeriodo(periodoId);
     return;
   }
@@ -311,7 +312,7 @@ function programarCierrePeriodo(periodoId, fechaFin) {
   });
   jobsPorPeriodo.set(periodoId, job);
 
-  console.log(`📅 Tarea programada para cerrar periodo ID ${periodoId} el ${fecha}`);
+  await registrarLog(`📅 Tarea programada para cerrar periodo ID ${periodoId} el ${fecha}`,{archivo:"programarCierre.log"});
 }
 
 
