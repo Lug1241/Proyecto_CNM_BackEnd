@@ -127,13 +127,21 @@ const Docente = sequelize.define('Docente', {
             len: { args: [8, 100], msg: "La contraseña debe tener al menos 8 caracteres" }
         }
     },
-     // 👇 NUEVO CAMPO
+    // 👇 NUEVO CAMPO
     debe_cambiar_password: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true, // siempre que lo registre el admin, se obliga a cambiarla
     },
-    
+    habilitado: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+    },
+    habilitado_hasta: {
+        type: DataTypes.DATE,
+        allowNull: true // Puede ser nulo si no está habilitado
+    },
     // 👇 Campos para recuperación de contraseña
     resetToken: {
         type: DataTypes.STRING,

@@ -4,6 +4,7 @@ const Estudiante = require('../models/estudiante.model');
 const Representantes = require('../models/representante.model')
 const Matricula = require('../models/matricula.models')
 const { Op, Sequelize } = require("sequelize");
+const {registrarLog} = require('../utils/registrarLogs')
 const crearEstudiante = async (request, res) => {
     const usuario = request.body;
     console.log("llego este usuario", usuario)
@@ -333,32 +334,40 @@ const getEstudiantesByNivel = async (request, response) => {
 }
 const getEstudiantesByMatricula = async (request, response) => {
     try {
-        const { nivel,idPeriodo } = request.params;
-        // Capturamos también el idPeriodo que enviaremos desde el front
+        const { nivel, idPeriodo } = request.params;
         let { page, limit } = request.query; 
+
+        // 1. LOG DE ENTRADA: Vemos exactamente qué está recibiendo el servidor
+        registerLog(`[INICIO] Búsqueda. Nivel: "${nivel}", Periodo: "${idPeriodo}", Page: "${page}", Limit: "${limit}"`, { tipo: 'INFO', archivo: 'estudiantes.log' });
         
         page = parseInt(page);
         limit = parseInt(limit);
 
-        // Configuramos la condición de búsqueda para la tabla Matriculas
+        // 2. LOG DE CONDICIONES: Imprimimos el objeto WHERE para verificar que Sequelize lo armó bien
+        const whereConditions = {
+            nivel: nivel,
+            ...(idPeriodo && { ID_periodo_academico: idPeriodo })
+        };
+        registerLog(`[CONDICIONES] SQL WHERE para Matricula: ${JSON.stringify(whereConditions)}`, { tipo: 'INFO', archivo: 'estudiantes.log' });
+
         const matriculaInclude = {
             model: Matricula, 
-            where: {
-                nivel: nivel,
-                // Validamos que exista idPeriodo para agregarlo al filtro histórico
-                ...(idPeriodo && { ID_periodo_academico: idPeriodo })
-            },
-            // Opcional: solo traer los campos necesarios de la matrícula para no saturar la respuesta
+            where: whereConditions,
             attributes: ['ID', 'nivel', 'ID_periodo_academico'] 
         };
 
         if (page && limit) {
+            registerLog(`[SQL] Ejecutando búsqueda CON paginación...`, { tipo: 'INFO', archivo: 'estudiantes.log' });
+            
             const { count, rows: estudiantes } = await Estudiante.findAndCountAll({
                 limit,
                 offset: (page - 1) * limit,
                 include: [matriculaInclude],
-                distinct: true // ⚠️ CRUCIAL: Evita que Sequelize cuente mal los registros al usar includes con 'where'
+                distinct: true 
             });
+
+            // 3. LOG DE RESULTADOS PAGINADOS
+            registerLog(`[RESULTADO] Búsqueda paginada terminada. Filas: ${estudiantes.length}, Total Count: ${count}`, { tipo: 'INFO', archivo: 'estudiantes.log' });
 
             return response.status(200).json({
                 data: estudiantes,
@@ -368,6 +377,8 @@ const getEstudiantesByMatricula = async (request, response) => {
             });
         }
 
+        registerLog(`[SQL] Ejecutando búsqueda SIN paginación...`, { tipo: 'INFO', archivo: 'estudiantes.log' });
+        
         // Búsqueda sin paginación
         const estudiantes = await Estudiante.findAll({
             include: [
@@ -379,7 +390,11 @@ const getEstudiantesByMatricula = async (request, response) => {
             ]
         });
 
+        // 4. LOG DE RESULTADOS NO PAGINADOS (Aquí es donde se detona tu 404)
+        registerLog(`[RESULTADO] Búsqueda sin paginación terminada. Registros encontrados: ${estudiantes.length}`, { tipo: 'INFO', archivo: 'estudiantes.log' });
+
         if (estudiantes.length === 0) {
+            registerLog(`[404] Retornando 404. No existe cruce entre Estudiante y Matricula para Nivel: "${nivel}" y Periodo: "${idPeriodo}".`, { tipo: 'WARN', archivo: 'estudiantes.log' });
             return response.status(404).json({ message: "No se encontró ningún estudiante para este nivel y período." });
         }
 
@@ -387,14 +402,16 @@ const getEstudiantesByMatricula = async (request, response) => {
         return response.status(200).json(result);
 
     } catch (error) {
+        // 5. LOG DE ERRORES REALES
+        registerLog(`[ERROR] Falló la petición: ${error.message}`, { tipo: 'ERROR', archivo: 'estudiantes.log' });
         console.log('Error al obtener todos los estudiantes:', error);
+        
         if (error.name === 'SequelizeValidationError') {
             const mensajes = error.errors.map(err => err.message);
             return response.status(400).json({ message: mensajes });
         }
         return response.status(500).json({ message: 'Error al obtener los estudiantes en el servidor' });
     }
-    
 }
 
 // }

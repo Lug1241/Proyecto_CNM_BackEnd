@@ -13,7 +13,7 @@ const sequelize = new Sequelize(db_name, username, password, {
 });
 const conexion =async()=>{
     try {
-        await sequelize.sync();
+        await sequelize.sync()// Sincroniza los modelos con la base de datos);
         return 'Base de datos sincronizada';
     } catch (error) {
         return'Error al sincronizar la BDD ' + error;

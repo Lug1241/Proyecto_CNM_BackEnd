@@ -170,7 +170,7 @@ const getFechaProximaActualizacion = async (req, res) => {
 
 		const proceso = await Fechas_procesos.findOne({
 			where: {
-				proceso: 'Actualizacion de datos'
+				proceso: 'Actualización de datos'
 			},
 			order: [['fecha_inicio', 'ASC']],
 		});
