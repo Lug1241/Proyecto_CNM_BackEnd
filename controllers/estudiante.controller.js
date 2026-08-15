@@ -338,7 +338,7 @@ const getEstudiantesByMatricula = async (request, response) => {
         let { page, limit } = request.query; 
 
         // 1. LOG DE ENTRADA: Vemos exactamente qué está recibiendo el servidor
-        registerLog(`[INICIO] Búsqueda. Nivel: "${nivel}", Periodo: "${idPeriodo}", Page: "${page}", Limit: "${limit}"`, { tipo: 'INFO', archivo: 'estudiantes.log' });
+        registrarLog(`[INICIO] Búsqueda. Nivel: "${nivel}", Periodo: "${idPeriodo}", Page: "${page}", Limit: "${limit}"`, { tipo: 'INFO', archivo: 'estudiantes.log' });
         
         page = parseInt(page);
         limit = parseInt(limit);
@@ -348,7 +348,7 @@ const getEstudiantesByMatricula = async (request, response) => {
             nivel: nivel,
             ...(idPeriodo && { ID_periodo_academico: idPeriodo })
         };
-        registerLog(`[CONDICIONES] SQL WHERE para Matricula: ${JSON.stringify(whereConditions)}`, { tipo: 'INFO', archivo: 'estudiantes.log' });
+        registrarLog(`[CONDICIONES] SQL WHERE para Matricula: ${JSON.stringify(whereConditions)}`, { tipo: 'INFO', archivo: 'estudiantes.log' });
 
         const matriculaInclude = {
             model: Matricula, 
@@ -357,7 +357,7 @@ const getEstudiantesByMatricula = async (request, response) => {
         };
 
         if (page && limit) {
-            registerLog(`[SQL] Ejecutando búsqueda CON paginación...`, { tipo: 'INFO', archivo: 'estudiantes.log' });
+            registrarLog(`[SQL] Ejecutando búsqueda CON paginación...`, { tipo: 'INFO', archivo: 'estudiantes.log' });
             
             const { count, rows: estudiantes } = await Estudiante.findAndCountAll({
                 limit,
@@ -367,7 +367,7 @@ const getEstudiantesByMatricula = async (request, response) => {
             });
 
             // 3. LOG DE RESULTADOS PAGINADOS
-            registerLog(`[RESULTADO] Búsqueda paginada terminada. Filas: ${estudiantes.length}, Total Count: ${count}`, { tipo: 'INFO', archivo: 'estudiantes.log' });
+            registrarLog(`[RESULTADO] Búsqueda paginada terminada. Filas: ${estudiantes.length}, Total Count: ${count}`, { tipo: 'INFO', archivo: 'estudiantes.log' });
 
             return response.status(200).json({
                 data: estudiantes,
@@ -377,7 +377,7 @@ const getEstudiantesByMatricula = async (request, response) => {
             });
         }
 
-        registerLog(`[SQL] Ejecutando búsqueda SIN paginación...`, { tipo: 'INFO', archivo: 'estudiantes.log' });
+        registrarLog(`[SQL] Ejecutando búsqueda SIN paginación...`, { tipo: 'INFO', archivo: 'estudiantes.log' });
         
         // Búsqueda sin paginación
         const estudiantes = await Estudiante.findAll({
@@ -391,10 +391,10 @@ const getEstudiantesByMatricula = async (request, response) => {
         });
 
         // 4. LOG DE RESULTADOS NO PAGINADOS (Aquí es donde se detona tu 404)
-        registerLog(`[RESULTADO] Búsqueda sin paginación terminada. Registros encontrados: ${estudiantes.length}`, { tipo: 'INFO', archivo: 'estudiantes.log' });
+        registrarLog(`[RESULTADO] Búsqueda sin paginación terminada. Registros encontrados: ${estudiantes.length}`, { tipo: 'INFO', archivo: 'estudiantes.log' });
 
         if (estudiantes.length === 0) {
-            registerLog(`[404] Retornando 404. No existe cruce entre Estudiante y Matricula para Nivel: "${nivel}" y Periodo: "${idPeriodo}".`, { tipo: 'WARN', archivo: 'estudiantes.log' });
+            registrarLog(`[404] Retornando 404. No existe cruce entre Estudiante y Matricula para Nivel: "${nivel}" y Periodo: "${idPeriodo}".`, { tipo: 'WARN', archivo: 'estudiantes.log' });
             return response.status(404).json({ message: "No se encontró ningún estudiante para este nivel y período." });
         }
 
@@ -403,7 +403,7 @@ const getEstudiantesByMatricula = async (request, response) => {
 
     } catch (error) {
         // 5. LOG DE ERRORES REALES
-        registerLog(`[ERROR] Falló la petición: ${error.message}`, { tipo: 'ERROR', archivo: 'estudiantes.log' });
+        registrarLog(`[ERROR] Falló la petición: ${error.message}`, { tipo: 'ERROR', archivo: 'estudiantes.log' });
         console.log('Error al obtener todos los estudiantes:', error);
         
         if (error.name === 'SequelizeValidationError') {
