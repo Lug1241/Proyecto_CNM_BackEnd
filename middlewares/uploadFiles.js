@@ -1,14 +1,19 @@
 const multer = require("multer");
-
+const fs = require("fs");
+const path = require("path");
 // Función para crear la configuración de multer
 const createMulterConfig = (folderName) => {
   return multer.diskStorage({
     destination: (req, file, cb) => {
-      cb(null, `uploads/${folderName}`); // Carpeta donde se guardarán los archivos
+      const dir = path.join(__dirname, "..", "uploads", folderName);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      cb(null, dir); // Carpeta donde se guardarán los archivos
     },
     filename: (req, file, cb) => {
       // Guardar solo con el nombre original
-      cb(null, file.originalname);
+      cb(null, `${Date.now()}-tmp.pdf`);
     },
   });
 };

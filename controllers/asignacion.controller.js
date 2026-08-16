@@ -706,7 +706,8 @@ const getAsignacionesPorAsignatura = async (req, res) => {
     let whereMateria = {
       nivel: {
         [Op.in]: nivelesMateria
-      }
+      },
+      tipo: { [Op.ne]: "individual" }
     };
 
     // Solo agregar filtro de nombre si asignatura no está vacía

@@ -4,11 +4,11 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Debug Express",
-            "program": "${workspaceFolder}/server.js",
-            "skipFiles": [
-                "<node_internals>/**"
-            ]
+            "name": "Lanzar Backend con Nodemon",
+            "runtimeExecutable": "nodemon",
+            "program": "${workspaceFolder}/index.js",
+            "restart": true,
+            "console": "integratedTerminal"
         }
     ]
 }

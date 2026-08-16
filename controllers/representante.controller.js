@@ -1,8 +1,10 @@
 const Representante = require('../models/representante.model');
+const Periodo_Academico = require('../models/periodo_academico.model');
 const crypto = require("crypto")
 const {enviarContrasenia}=require("../utils/enivarCorreo")
 const bcrypt = require("bcryptjs");
-
+const path = require("path");
+const fs = require("fs");
 // Create REPRESENTANTE
 const crearRepresentante = async (request, response) => {
     const usuario = request.body;
@@ -208,7 +210,39 @@ const updateRepresentante = async (request, response) => {
             enviarContrasenia(usuario.email,provicional)
             
         }
+        const periodoActivo = await Periodo_Academico.findOne({ where: { estado: 'Activo' }, raw: true  } );
+        let anioLectivo = "S-F"; // Sin fecha por defecto
+        if (periodoActivo && periodoActivo.descripcion) {
+            anioLectivo = periodoActivo.descripcion.replace('Periodo', '').trim();
+        }
+        if (request.files) {
+            // Extraemos la cédula del body para el nombre
+            const cedula = usuario.nroCedula || "sin-cedula"; 
 
+            for (const fieldname in request.files) {
+                const archivoInformacion = request.files[fieldname][0]; // Obtenemos el archivo subido
+                
+                // Construimos el nuevo nombre: 1726313255_copiaCedula_2025-2026.pdf
+                const nuevoNombreArchivo = `${cedula}_${fieldname}_${anioLectivo}.pdf`;
+                
+                // Construimos las rutas absolutas para renombrar el archivo en el disco
+                const rutaAntigua = archivoInformacion.path; // ej: uploads/Estudiantes/1692123456789-tmp.pdf
+                const rutaNueva = path.join(archivoInformacion.destination, nuevoNombreArchivo);
+                
+                // Renombramos el archivo físicamente (esto reemplazará un archivo viejo si se llama igual, lo cual es perfecto)
+                fs.renameSync(rutaAntigua, rutaNueva);
+
+                // 3. Guardamos la RUTA RELATIVA en el objeto que irá a la Base de Datos
+                // Asumiendo que tu carpeta de destino se llamaba 'Estudiantes'
+                const rutaParaBD = `uploads/Representantes/${nuevoNombreArchivo}`;
+
+                if (fieldname === "copiaCedula") {
+                    usuario.cedula_PDF = rutaParaBD;
+                } else if (fieldname === "croquis") {
+                    usuario.croquis_PDF = rutaParaBD; // O el nombre que tenga este campo en tu BD
+                }
+            }
+        }
         // Actualizar el representante
         const [updatedRows] = await Representante.update(usuario, {
             where: { nroCedula: nroCedula }

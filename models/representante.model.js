@@ -125,8 +125,20 @@ const Representante = sequelize.define('Representante', {
         allowNull: false,  // No permite NULL
         defaultValue: "",  // Establece el valor vacío por defecto
         validate: {
-            isNumeric: { msg: "Solo se permiten números" },  // Solo números
-            len: { args: [7, 10], msg: "La longitud puede ser entre 7 y 8" }      // Longitud entre 7 y 10
+            validarConvencional(value) {
+                // 1. Si la cadena está vacía, la damos por válida y detenemos la validación aquí
+                if (value === "") return;
+
+                // 2. Si tiene contenido, validamos que sean estrictamente números usando una expresión regular
+                if (!/^\d+$/.test(value)) {
+                    throw new Error("Solo se permiten números");
+                }
+
+                // 3. Validamos la longitud
+                if (value.length < 7 || value.length > 10) {
+                    throw new Error("La longitud debe ser entre 7 y 10 dígitos");
+                }
+            }
         }
     },
     emergencia: {
@@ -183,6 +195,6 @@ Estudiante.belongsTo(Representante, {
     },
     targetKey: 'nroCedula',
     onUpdate: 'CASCADE',
-    onDelete: 'RESTRICT'  
+    onDelete: 'RESTRICT'
 });
 module.exports = Representante

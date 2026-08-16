@@ -3,8 +3,10 @@ const path = require("path");
 const Estudiante = require('../models/estudiante.model');
 const Representantes = require('../models/representante.model')
 const Matricula = require('../models/matricula.models')
+const PeriodoAcademico = require('../models/periodo_academico.model')
 const { Op, Sequelize } = require("sequelize");
-const {registrarLog} = require('../utils/registrarLogs')
+const fs = require("fs");
+const { registrarLog } = require('../utils/registrarLogs')
 const crearEstudiante = async (request, res) => {
     const usuario = request.body;
     console.log("llego este usuario", usuario)
@@ -29,7 +31,7 @@ const crearEstudiante = async (request, res) => {
         usuario.matricula_IER_PDF = matriculaIERPath
         const anioActual = parseInt(new Date().getFullYear());
         usuario.anioMatricula = anioActual
-        
+
         console.log("esta es la objeto", usuario)
 
         const result = await Estudiante.create(usuario)
@@ -335,11 +337,11 @@ const getEstudiantesByNivel = async (request, response) => {
 const getEstudiantesByMatricula = async (request, response) => {
     try {
         const { nivel, idPeriodo } = request.params;
-        let { page, limit } = request.query; 
+        let { page, limit } = request.query;
 
         // 1. LOG DE ENTRADA: Vemos exactamente qué está recibiendo el servidor
         registrarLog(`[INICIO] Búsqueda. Nivel: "${nivel}", Periodo: "${idPeriodo}", Page: "${page}", Limit: "${limit}"`, { tipo: 'INFO', archivo: 'estudiantes.log' });
-        
+
         page = parseInt(page);
         limit = parseInt(limit);
 
@@ -351,19 +353,19 @@ const getEstudiantesByMatricula = async (request, response) => {
         registrarLog(`[CONDICIONES] SQL WHERE para Matricula: ${JSON.stringify(whereConditions)}`, { tipo: 'INFO', archivo: 'estudiantes.log' });
 
         const matriculaInclude = {
-            model: Matricula, 
+            model: Matricula,
             where: whereConditions,
-            attributes: ['ID', 'nivel', 'ID_periodo_academico'] 
+            attributes: ['ID', 'nivel', 'ID_periodo_academico']
         };
 
         if (page && limit) {
             registrarLog(`[SQL] Ejecutando búsqueda CON paginación...`, { tipo: 'INFO', archivo: 'estudiantes.log' });
-            
+
             const { count, rows: estudiantes } = await Estudiante.findAndCountAll({
                 limit,
                 offset: (page - 1) * limit,
                 include: [matriculaInclude],
-                distinct: true 
+                distinct: true
             });
 
             // 3. LOG DE RESULTADOS PAGINADOS
@@ -378,7 +380,7 @@ const getEstudiantesByMatricula = async (request, response) => {
         }
 
         registrarLog(`[SQL] Ejecutando búsqueda SIN paginación...`, { tipo: 'INFO', archivo: 'estudiantes.log' });
-        
+
         // Búsqueda sin paginación
         const estudiantes = await Estudiante.findAll({
             include: [
@@ -405,7 +407,7 @@ const getEstudiantesByMatricula = async (request, response) => {
         // 5. LOG DE ERRORES REALES
         registrarLog(`[ERROR] Falló la petición: ${error.message}`, { tipo: 'ERROR', archivo: 'estudiantes.log' });
         console.log('Error al obtener todos los estudiantes:', error);
-        
+
         if (error.name === 'SequelizeValidationError') {
             const mensajes = error.errors.map(err => err.message);
             return response.status(400).json({ message: mensajes });
@@ -430,7 +432,41 @@ const updateEstudiante = async (request, response) => {
         if (!estudianteExistente) {
             return response.status(404).json({ message: 'El estudiante no existe' });
         }
+        const periodoActivo = await PeriodoAcademico.findOne({ where: { estado: 'Activo' }, raw: true  } );
+        let anioLectivo = "S-F"; // Sin fecha por defecto
+        if (periodoActivo && periodoActivo.descripcion) {
+            anioLectivo = periodoActivo.descripcion.replace('Periodo', '').trim();
+        }
+        if (request.files) {
+            // Extraemos la cédula del body para el nombre
+            const cedula = usuario.nroCedula || "sin-cedula";
 
+            for (const fieldname in request.files) {
+                const archivoInformacion = request.files[fieldname][0]; // Obtenemos el archivo subido
+
+                // Construimos el nuevo nombre: 1726313255_copiaCedula_2025-2026.pdf
+                const nuevoNombreArchivo = `${cedula}_${fieldname}_${anioLectivo}.pdf`;
+
+                // Construimos las rutas absolutas para renombrar el archivo en el disco
+                const rutaAntigua = archivoInformacion.path; // ej: uploads/Estudiantes/1692123456789-tmp.pdf
+                const rutaNueva = path.join(archivoInformacion.destination, nuevoNombreArchivo);
+
+                // Renombramos el archivo físicamente (esto reemplazará un archivo viejo si se llama igual, lo cual es perfecto)
+                fs.renameSync(rutaAntigua, rutaNueva);
+
+                // 3. Guardamos la RUTA RELATIVA en el objeto que irá a la Base de Datos
+                // Asumiendo que tu carpeta de destino se llamaba 'Estudiantes'
+                const rutaParaBD = `uploads/Estudiantes/${nuevoNombreArchivo}`;
+
+                if (fieldname === "copiaCedula") {
+                    usuario.cedula_PDF = rutaParaBD;
+                } else if (fieldname === "matricula_IER") {
+                    usuario.matricula_IER_PDF = rutaParaBD; // O el nombre que tenga este campo en tu BD
+                }
+            }
+        }
+        console.log("1. Lo que Sequelize acepta:", Object.keys(Estudiante.getAttributes()));
+        console.log("2. Lo que le estoy enviando:", usuario.matricula_IER_PDF);
         // Actualizar el estudiante
         const [updatedRows] = await Estudiante.update(usuario, {
             where: { ID }
@@ -531,16 +567,21 @@ const verificarMatriculaIER = async (request, response) => {
 
     try {
         const estudiante = await Estudiante.findByPk(ID);
-        
+
         if (!estudiante) {
-            return response.status(404).json({ 
+            return response.status(404).json({
                 message: 'Estudiante no encontrado',
                 datosActualizados: false
             });
         }
-
+        const periodoActivo = await PeriodoAcademico.findOne({ where: { estado: 'Activo' }, raw: true  } );
+        let anioLectivo = "S-F"; // Sin fecha por defecto
+        if (periodoActivo && periodoActivo.descripcion) {
+            anioLectivo = periodoActivo.descripcion.replace('Periodo', '').trim();
+        }
         // Verificar si tiene el PDF de matrícula IER cargado
-        const tieneMatriculaIER = estudiante.matricula_IER_PDF && estudiante.matricula_IER_PDF.trim() !== '';
+        const tieneMatriculaIER = estudiante.matricula_IER_PDF && estudiante.matricula_IER_PDF.trim() !== '' &&
+            estudiante.matricula_IER_PDF.includes(anioLectivo);
 
         if (tieneMatriculaIER) {
             return response.status(200).json({
