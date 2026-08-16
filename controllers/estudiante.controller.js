@@ -463,6 +463,7 @@ const updateEstudiante = async (request, response) => {
                 } else if (fieldname === "matricula_IER") {
                     usuario.matricula_IER_PDF = rutaParaBD; // O el nombre que tenga este campo en tu BD
                 }
+                console.log("hello")
             }
         }
         console.log("1. Lo que Sequelize acepta:", Object.keys(Estudiante.getAttributes()));
