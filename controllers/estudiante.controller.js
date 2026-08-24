@@ -581,8 +581,8 @@ const verificarMatriculaIER = async (request, response) => {
             anioLectivo = periodoActivo.descripcion.replace('Periodo', '').trim();
         }
         // Verificar si tiene el PDF de matrícula IER cargado
-        const tieneMatriculaIER = estudiante.cedula_PDF && estudiante.Cedula_PDF.trim() !== '' &&
-            estudiante.Cedula_PDF.includes(anioLectivo);
+        const tieneMatriculaIER = estudiante.cedula_PDF && estudiante.cedula_PDF.trim() !== '' &&
+            estudiante.cedula_PDF.includes(anioLectivo);
 
         if (tieneMatriculaIER) {
             return response.status(200).json({
