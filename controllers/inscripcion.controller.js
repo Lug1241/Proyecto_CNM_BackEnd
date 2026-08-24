@@ -300,7 +300,7 @@ const deleteInscripcion = async (req, res) => {
                 model: Asignacion,
                 as: 'Asignacion',
                 include: {
-                    model: MateriaDetalle, // <-- Ajusta esto al nombre real de tu modelo
+                    model: Materia, // <-- Ajusta esto al nombre real de tu modelo
                     as: 'materiaDetalle'   // <-- Ajusta esto al alias que hayas definido
                 }
             },
