@@ -4,9 +4,9 @@ const Estudiante = require('../models/estudiante.model');
 const Representantes = require('../models/representante.model')
 const Matricula = require('../models/matricula.models')
 const PeriodoAcademico = require('../models/periodo_academico.model')
+const {registrarLog} = require('../utils/registrarLogs')
 const { Op, Sequelize } = require("sequelize");
 const fs = require("fs");
-const { registrarLog } = require('../utils/registrarLogs')
 const crearEstudiante = async (request, res) => {
     const usuario = request.body;
     console.log("llego este usuario", usuario)
@@ -565,31 +565,51 @@ const deleteEstudiante = async (request, response) => {
  */
 const verificarMatriculaIER = async (request, response) => {
     const ID = request.params.id;
+    
+    // Log 1: Saber qué ID estamos recibiendo
+    registrarLog(`[INFO] Iniciando verificarMatriculaIER. ID recibido: "${ID}"`, { tipo: 'INFO', archivo: 'estudiantes.log' });
 
     try {
         const estudiante = await Estudiante.findByPk(ID);
 
         if (!estudiante) {
+            // Log 2: Capturar cuando no existe el estudiante
+            registrarLog(`[404] Retornando 404. Estudiante no encontrado para el ID: "${ID}".`, { tipo: 'WARN', archivo: 'estudiantes.log' });
             return response.status(404).json({
                 message: 'Estudiante no encontrado',
                 datosActualizados: false
             });
         }
+
         const periodoActivo = await PeriodoAcademico.findOne({ where: { estado: 'Activo' }, raw: true  } );
         let anioLectivo = "S-F"; // Sin fecha por defecto
+        
         if (periodoActivo && periodoActivo.descripcion) {
             anioLectivo = periodoActivo.descripcion.replace('Periodo', '').trim();
+            // Log 3: Ver qué año lectivo calculó a partir de la descripción
+            registrarLog(`[INFO] Periodo activo encontrado. Descripción: "${periodoActivo.descripcion}". anioLectivo extraído: "${anioLectivo}".`, { tipo: 'INFO', archivo: 'estudiantes.log' });
+        } else {
+            // Log 4: Advertencia si no encuentra periodo activo
+            registrarLog(`[WARN] No se encontró Periodo Activo o no tiene descripción. Usando anioLectivo por defecto: "${anioLectivo}".`, { tipo: 'WARN', archivo: 'estudiantes.log' });
         }
+
+        // Log 5: Ver el estado exacto de la cédula del estudiante antes de evaluar (clave para ver por qué da falso)
+        registrarLog(`[DEBUG] Evaluando PDF para estudiante "${ID}". Valor de cedula_PDF: "${estudiante.cedula_PDF}". Evaluando si incluye: "${anioLectivo}".`, { tipo: 'DEBUG', archivo: 'estudiantes.log' });
+
         // Verificar si tiene el PDF de matrícula IER cargado
         const tieneMatriculaIER = estudiante.cedula_PDF && estudiante.cedula_PDF.trim() !== '' &&
             estudiante.cedula_PDF.includes(anioLectivo);
 
         if (tieneMatriculaIER) {
+            // Log 6: Confirmación de éxito
+            registrarLog(`[200] Retornando 200. Documentos actualizados (true) para el estudiante: "${ID}".`, { tipo: 'INFO', archivo: 'estudiantes.log' });
             return response.status(200).json({
                 datosActualizados: true,
                 message: 'El estudiante tiene los documentos actualizados'
             });
         } else {
+            // Log 7: Confirmación de que necesita actualizar
+            registrarLog(`[200] Retornando 200. Documentos desactualizados (false) para el estudiante: "${ID}".`, { tipo: 'INFO', archivo: 'estudiantes.log' });
             return response.status(200).json({
                 datosActualizados: false,
                 message: 'El estudiante debe actualizar la cedula antes de matricularse'
@@ -597,7 +617,10 @@ const verificarMatriculaIER = async (request, response) => {
         }
 
     } catch (error) {
+        // Log 8: Capturar el error real de código o base de datos
+        registrarLog(`[500] Retornando 500. Error al verificar matrícula IER del estudiante "${ID}". Detalles: ${error.message}`, { tipo: 'ERROR', archivo: 'estudiantes.log' });
         console.log('Error al verificar matrícula IER del estudiante:', error);
+        
         return response.status(500).json({
             message: 'Error al verificar la documentación del estudiante en el servidor',
             datosActualizados: false
