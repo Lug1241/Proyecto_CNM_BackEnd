@@ -186,7 +186,11 @@ const createInscripcion = async (req, res) => {
                 return tienenHorariosSolapados(rangoNueva, rangoExistente);
             });
         });
-
+        if (req.user.rol === "representante" && /ensamble|coro|banda|big band/i.test(asignacionActual.materiaDetalle.nombre)) 
+        {
+            await t.rollback();
+            return res.status(400).json({ message: "No se puede inscribir en esta materia pero administracion les asignará cupo después" });
+        }
         if (conflicto) {
             await t.rollback(); // 👈 importante
             return res.status(400).json({ message: "Inscripción no válida por cruce de horarios" });
