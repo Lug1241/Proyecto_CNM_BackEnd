@@ -581,8 +581,8 @@ const verificarMatriculaIER = async (request, response) => {
             anioLectivo = periodoActivo.descripcion.replace('Periodo', '').trim();
         }
         // Verificar si tiene el PDF de matrícula IER cargado
-        const tieneMatriculaIER = estudiante.matricula_IER_PDF && estudiante.matricula_IER_PDF.trim() !== '' &&
-            estudiante.matricula_IER_PDF.includes(anioLectivo);
+        const tieneMatriculaIER = estudiante.cedula_PDF && estudiante.Cedula_PDF.trim() !== '' &&
+            estudiante.Cedula_PDF.includes(anioLectivo);
 
         if (tieneMatriculaIER) {
             return response.status(200).json({
@@ -592,7 +592,7 @@ const verificarMatriculaIER = async (request, response) => {
         } else {
             return response.status(200).json({
                 datosActualizados: false,
-                message: 'El estudiante debe actualizar su documentación (Matrícula IER) antes de matricularse'
+                message: 'El estudiante debe actualizar la cedula antes de matricularse'
             });
         }
 
