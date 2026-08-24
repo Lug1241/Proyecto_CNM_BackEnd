@@ -290,22 +290,36 @@ const getInscripcion = async (req, res) => {
 
 const deleteInscripcion = async (req, res) => {
     const t = await sequelize.transaction();
+    
     try {
         const id = req.params.id;
 
-        // Buscar la inscripción con su asignación relacionada, con bloqueo
+        // 1. Añadimos el 'include' anidado para materiaDetalle
         const inscripcion = await Inscripcion.findByPk(id, {
             include: {
                 model: Asignacion,
-                as: 'Asignacion'
+                as: 'Asignacion',
+                include: {
+                    model: MateriaDetalle, // <-- Ajusta esto al nombre real de tu modelo
+                    as: 'materiaDetalle'   // <-- Ajusta esto al alias que hayas definido
+                }
             },
             transaction: t,
             lock: t.LOCK.UPDATE
         });
 
+        // 2. PRIMERO validamos que la inscripción exista
         if (!inscripcion) {
             await t.rollback();
             return res.status(404).json({ message: 'Inscripción no encontrada' });
+        }
+
+        // 3. LUEGO validamos las reglas de negocio (usando Optional Chaining '?.' para evitar caídas)
+        const nombreMateria = inscripcion.Asignacion?.materiaDetalle?.nombre || "";
+        
+        if (req.user.rol === "representante" && /ensamble|coro|banda|big band/i.test(nombreMateria)) {
+            await t.rollback();
+            return res.status(400).json({ message: "No se puede borrar inscripciones de materias de agrupación" });
         }
 
         // Sumar 1 cupo a la asignación relacionada
@@ -313,16 +327,13 @@ const deleteInscripcion = async (req, res) => {
             inscripcion.Asignacion.cupos += 1;
             await inscripcion.Asignacion.save({ transaction: t });
         }
-
-        // Eliminar la inscripción
-        await Inscripcion.destroy({
-            where: { id },
-            transaction: t
-        });
+        
+        // Eliminar la inscripción (como ya tienes la instancia, puedes destruirla directamente)
+        await inscripcion.destroy({ transaction: t });
 
         await t.commit();
-        const inscripcionEliminada = inscripcion.get({ plain: true });
-        return res.status(200).json(inscripcionEliminada);
+        
+        return res.status(200).json(inscripcion);
 
     } catch (error) {
         await t.rollback();
