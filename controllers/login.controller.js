@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const Representante = require('../models/representante.model');
 const Docente = require('../models/docente.model');
 const generateToken = require('../utils/generarToken');
+const {registrarLog} = require('../utils/registrarLogs')
 
 // Asegúrate de importar 'registrarLog' en la parte superior si está en otro archivo, 
 // o simplemente úsalo si está en el mismo archivo.
