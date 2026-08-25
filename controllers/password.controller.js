@@ -7,6 +7,7 @@ const { Op } = require('sequelize');
 require("dotenv").config();
 const { check } = require('express-validator');
 const { enviarRecoverLink } = require("../utils/enivarCorreo")
+const {registrarLog} = require('../utils/registrarLogs')
 
 module.exports.validatePasswordChange = [
   check('newPassword')
@@ -100,18 +101,22 @@ exports.requestPasswordReset = async (req, res) => {
   }
 };
 exports.resetPassword = async (req, res) => {
-  console.log("dice la peticio´n")
+  // 1. Log: Inicio de la petición (sin exponer el body)
+  await registrarLog('Petición de restablecimiento de contraseña iniciada', { tipo: 'INFO', archivo: 'password.log' });
 
   try {
     const { token, newPassword } = req.body;
-    console.log("este es el body", req.body)
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log("entre aca")
+      // 2. Log: Fallo en la validación (ej. contraseña muy corta)
+      await registrarLog(`Fallo de validación al restablecer contraseña: ${errors.array()[0].msg}`, { tipo: 'WARN', archivo: 'password.log' });
       return res.status(400).json({ message: errors.array()[0].msg });
     }
+
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    let user
+    let user;
+    
     user = await Docente.findOne({
       where: {
         resetToken: tokenHash,
@@ -125,9 +130,12 @@ exports.resetPassword = async (req, res) => {
           resetToken: tokenHash,
           resetTokenExpires: { [Op.gt]: new Date() },
         },
-      })
+      });
     }
+
     if (!user) {
+      // 3. Log: Token inválido o expirado
+      await registrarLog('Intento de restablecimiento fallido: Token inválido o expirado', { tipo: 'WARN', archivo: 'password.log' });
       return res.status(400).json({ message: 'Token inválido o expirado' });
     }
 
@@ -139,10 +147,18 @@ exports.resetPassword = async (req, res) => {
 
     await user.save();
 
+    // 4. Log: Éxito al cambiar la contraseña (usamos la cédula o ID si está disponible para identificar quién fue)
+    const identificador = user.nroCedula || user.id || 'Desconocido';
+    await registrarLog(`Contraseña actualizada correctamente para el usuario: ${identificador}`, { tipo: 'INFO', archivo: 'password.log' });
+
     return res.json({ message: 'Contraseña actualizada correctamente' });
+    
   } catch (err) {
-    console.log("este es el error", err);
+    // 5. Log: Error crítico en el servidor
+    await registrarLog(`Error interno al cambiar la contraseña: ${err.message}\nStack: ${err.stack}`, { tipo: 'ERROR', archivo: 'password.log' });
+    console.error("Error en resetPassword:", err);
     return res.status(500).json({ message: 'Error al cambiar la contraseña' });
   }
 };
+
 
