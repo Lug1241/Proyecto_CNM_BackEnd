@@ -317,7 +317,7 @@ const deleteInscripcion = async (req, res) => {
         // 3. LUEGO validamos las reglas de negocio (usando Optional Chaining '?.' para evitar caídas)
         const nombreMateria = inscripcion.Asignacion?.materiaDetalle?.nombre || "";
         
-        if (req.user.rol === "representante" && /ensamble|coro|banda|big band/i.test(nombreMateria)) {
+        if (req.user.rol === "representante" && /ensamble|coro|banda|big band|Audioperceptiva|Orquesta pedagógica/i.test(nombreMateria)) {
             await t.rollback();
             return res.status(400).json({ message: "No se puede borrar inscripciones de materias de agrupación" });
         }
