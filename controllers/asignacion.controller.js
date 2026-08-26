@@ -412,9 +412,23 @@ const getAsignacionesPorDocente = async (req, res) => {
   try {
     const { id_docente } = req.params;
 
+    const periodoActivo = await Periodo_Academico.findOne({
+      where: { estado: "Activo" }
+    });
+
+    if (!periodoActivo) {
+      return res.status(200).json({
+        data: [],
+        message: "No hay un período académico activo."
+      });
+    }
+
     // Incluye las relaciones necesarias: Docente, Materia y Periodo_Academico
     const asignaciones = await Asignacion.findAll({
-      where: { nroCedula_docente: id_docente },
+      where: {
+        nroCedula_docente: id_docente,
+        ID_periodo_academico: periodoActivo.ID
+      },
       include: [
         {
           model: Docente,
