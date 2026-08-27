@@ -3,12 +3,12 @@ const bcrypt = require("bcryptjs")
 const Docente = require('../models/docente.model')
 const crypto = require("crypto")
 const { enviarContrasenia } = require("../utils/enivarCorreo")
-const { Op, Sequelize } = require('sequelize'); // Asegúrate de tenerlo al inicio
+const { Op, Sequelize, where } = require('sequelize'); // Asegúrate de tenerlo al inicio
 
 const createDocente = async (req, res) => {
     try {
         const docente = req.body
-        const docenteFound = await Docente.findByPk(docente.nroCedula)
+        const docenteFound = await Docente.findOne({ where: { nroCedula: nroCedula } });
         if (docenteFound) {
             return res.status(409).json({ message: "La cédula ya existe" })
         }
@@ -85,7 +85,7 @@ const editDocente = async (req, res) => {
         if (updatedRows === 0) {
             return res.status(404).json({ message: "No se puedo actualizar el docente" })
         }
-        const docenteEdited = await Docente.findByPk(nroCedula)
+        const docenteEdited = await Docente.findOne({ where: { nroCedula: nroCedula } });
         
         const { password: _, ...result } = docenteEdited.toJSON()
         return res.status(200).json(result)
@@ -128,7 +128,7 @@ const getDocente = async (req, res) => {
 
     try {
         const nroCedula = req.params.cedula
-        const docente = await Docente.findByPk(nroCedula)
+        const docente = await Docente.findOne( {where: { nroCedula: nroCedula} })
         if (!docente) {
             return res.status(404).json({ message: "Docente no encontrado" })
         }
@@ -223,7 +223,7 @@ const eliminarDocente = async (req, res) => {
     try {
 
         const nroCedula = req.params.cedula
-        const docente = await Docente.findByPk(nroCedula)
+        const docente = await Docente.findOne({ where: { nroCedula: nroCedula } });
         if (!docente) {
             return res.status(404).json({ message: "Docente no encontrado" })
         }
