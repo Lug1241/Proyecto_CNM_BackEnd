@@ -27,12 +27,13 @@ const mapearNivelEstudianteAMateria = (nivelEstudiante) => {
 
 const createAsignacion = async (req, res) => {
   try {
+    const asignacion = req.body;
     const docente = await Docente.findOne( {where: { nroCedula: asignacion.nroCedula_docente}} );
     if (!docente) {
       return res.status(404).json({ message: "Docente no encontrado" });
     }
     const ID_docente = docente.ID;
-    const asignacion = req.body;
+    
     console.log("Esta es lo que se recibe:", asignacion);
 
     // Verificar si la asignación ya existe. Cambié la búsqueda para comprobar los parámetros relevantes.
@@ -190,14 +191,13 @@ const createAsignacion = async (req, res) => {
 }
 const updateAsignacion = async (req, res) => {
   try {
-
+    const asignacion = req.body
     const docente = await Docente.findOne( {where: { nroCedula: asignacion.nroCedula_docente}} );
     if (!docente) {
       return res.status(404).json({ message: "Docente no encontrado" });
     }
     const ID_docente = docente.ID;
-
-    const asignacion = req.body
+    
     console.log("esto llega", asignacion)
     const asignacionesDocente = await Asignacion.findAll({
       where: {
