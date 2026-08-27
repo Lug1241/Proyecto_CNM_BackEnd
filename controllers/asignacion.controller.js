@@ -27,6 +27,11 @@ const mapearNivelEstudianteAMateria = (nivelEstudiante) => {
 
 const createAsignacion = async (req, res) => {
   try {
+    const docente = await Docente.findOne( {where: { nroCedula: asignacion.nroCedula_docente}} );
+    if (!docente) {
+      return res.status(404).json({ message: "Docente no encontrado" });
+    }
+    const ID_docente = docente.ID;
     const asignacion = req.body;
     console.log("Esta es lo que se recibe:", asignacion);
 
@@ -34,7 +39,7 @@ const createAsignacion = async (req, res) => {
 
     const asignacionesDocente = await Asignacion.findAll({
       where: {
-        nroCedula_docente: asignacion.nroCedula_docente,
+        ID_docente: ID_docente,
         ID_periodo_academico: asignacion.ID_periodo_academico
       }
     });
@@ -118,7 +123,7 @@ const createAsignacion = async (req, res) => {
       hora1: asignacion?.hora1 ?? null,
       hora2: asignacion?.hora2 ?? null,
       ID_periodo_academico: asignacion.ID_periodo_academico,
-      nroCedula_docente: asignacion.nroCedula_docente,
+      ID_docente: ID_docente,
       ID_materia: asignacion.ID_materia,
     })
     const result = await Asignacion.findByPk(result1.ID, {
@@ -186,11 +191,17 @@ const createAsignacion = async (req, res) => {
 const updateAsignacion = async (req, res) => {
   try {
 
+    const docente = await Docente.findOne( {where: { nroCedula: asignacion.nroCedula_docente}} );
+    if (!docente) {
+      return res.status(404).json({ message: "Docente no encontrado" });
+    }
+    const ID_docente = docente.ID;
+
     const asignacion = req.body
     console.log("esto llega", asignacion)
     const asignacionesDocente = await Asignacion.findAll({
       where: {
-        nroCedula_docente: asignacion.nroCedula_docente,
+        ID_docente: ID_docente,
         ID_periodo_academico: asignacion.ID_periodo_academico,
         ID: {
           [Op.not]: req.params.id  // 👈 Excluye la asignación actual
@@ -263,6 +274,8 @@ const updateAsignacion = async (req, res) => {
     const id = req.params.id
 
 
+    delete asignacion.nroCedula_docente;
+    asignacion.ID_docente = ID_docente;
 
     const [updatedRows] = await Asignacion.update(asignacion, { where: { id } })
     if (updatedRows === 0) {
@@ -410,8 +423,14 @@ const deleteAsignacion = async (req, res) => {
 
 const getAsignacionesPorDocente = async (req, res) => {
   try {
-    const { id_docente } = req.params;
 
+    const { id_docente } = req.params;
+    const docente = await Docente.findOne( {where: { nroCedula: id_docente}} );
+    if (!docente) {
+      return res.status(404).json({ message: "Docente no encontrado" });
+    }
+    const ID_docente = docente.ID;
+    
     const periodoActivo = await Periodo_Academico.findOne({
       where: { estado: "Activo" }
     });
@@ -426,7 +445,7 @@ const getAsignacionesPorDocente = async (req, res) => {
     // Incluye las relaciones necesarias: Docente, Materia y Periodo_Academico
     const asignaciones = await Asignacion.findAll({
       where: {
-        nroCedula_docente: id_docente,
+        ID_docente: ID_docente,
         ID_periodo_academico: periodoActivo.ID
       },
       include: [
@@ -779,11 +798,18 @@ const getAsignacionesSinMatriculaPorDocente = async (req, res) => {
 
   try {
     const docente = req.params.docente
+
+    const profesor = await Docente.findOne( {where: { nroCedula: docente}} );
+    if (!profesor) {
+      return res.status(404).json({ message: "Docente no encontrado" });
+    }
+    const ID_docente = profesor.ID;
+
     const periodo = req.params.periodo
     console.log("estos son el preiodo y el docente", docente, periodo)
     const asignaciones = await Asignacion.findAll({
       where: {
-        nroCedula_docente: docente,
+        ID_docente: ID_docente,
         '$Matriculas.id$': {
           [Op.is]: null, // <- filtramos donde no hay relación
         },
