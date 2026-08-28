@@ -61,7 +61,7 @@ const Periodo_Academico = sequelize.define('Periodo_Academico',{
         },
         
     }
-},
+}, 
 {
     tableName: 'periodos_academicos'
 }

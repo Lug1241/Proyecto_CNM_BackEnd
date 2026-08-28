@@ -490,7 +490,12 @@ const getAsignacionesPorDocente = async (req, res) => {
         nivel: asignacion.materiaDetalle?.nivel,
         tipo: asignacion.materiaDetalle?.tipo,
         createdAt: asignacion.createdAt,
-        updatedAt: asignacion.updatedAt
+        updatedAt: asignacion.updatedAt,
+        dias:asignacion.dias,
+        horaInicio: asignacion.horaInicio,
+        horaFin: asignacion.horaFin,
+        hora1: asignacion.hora1,
+        hora2: asignacion.hora2,
       };
     });
 

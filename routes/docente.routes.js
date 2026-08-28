@@ -9,4 +9,4 @@ module.exports = (app) => {
     app.get('/api/docente/obtener/:cedula', DocenteController.getDocente)
     app.get('/api/docente/obtener', Docente, DocenteController.getDocentes)
     app.delete('/api/docente/eliminar/:cedula', docenteAdministrador, DocenteController.eliminarDocente)
-}
+} 
