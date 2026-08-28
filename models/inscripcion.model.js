@@ -4,7 +4,7 @@ const Matricula = require('./matricula.models')
 const Asignacion = require('./asignacion.model')
 
 const Inscripcion = sequelize.define("Inscripcion", {
-    ID: {
+    ID: { 
         type: DataTypes.INTEGER,
         allowNull: false,
         autoIncrement: true,

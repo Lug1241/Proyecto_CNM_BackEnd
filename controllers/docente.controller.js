@@ -8,7 +8,7 @@ const { Op, Sequelize, where } = require('sequelize'); // Asegúrate de tenerlo 
 const createDocente = async (req, res) => {
     try {
         const docente = req.body
-        const docenteFound = await Docente.findOne({ where: { nroCedula: nroCedula } });
+        const docenteFound = await Docente.findOne({ where: { nroCedula: docente.nroCedula } });
         if (docenteFound) {
             return res.status(409).json({ message: "La cédula ya existe" })
         }
