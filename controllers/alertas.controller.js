@@ -22,7 +22,7 @@ const getNotasFaltantes = async (req, res) => {
       `SELECT COUNT(i.ID) AS total
        FROM inscripciones i
        INNER JOIN asignaciones a ON a.ID = i.ID_asignacion
-       WHERE a.nroCedula_docente = :cedula
+       WHERE a.ID_docente = :ID
          AND a.ID_periodo_academico = :periodoId`,
       { replacements: { cedula: nroCedula, periodoId: periodo.ID } }
     )
@@ -32,7 +32,7 @@ const getNotasFaltantes = async (req, res) => {
     }
 
     // Todos los roles filtran por su propia cédula
-    const tc = 'AND a.nroCedula_docente = :cedula'
+    const tc = 'AND a.ID_docente = :ID'
     const rp = { cedula: nroCedula, periodoId: periodo.ID }
 
     // 3) Contar inscripciones REGULARES con parciales incompletos

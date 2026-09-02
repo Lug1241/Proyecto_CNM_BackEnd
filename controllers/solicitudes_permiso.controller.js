@@ -5,10 +5,15 @@ const { sequelize } = require('../config/sequelize.config')
 const createSolicitud = async (req, res) => {
     try {
         const solicitud = req.body;
+        const docente = await Docente.findOne( {where: { nroCedula: solicitud.nroCedula_docente}} );
+        if (!docente) {
+          return res.status(404).json({ message: "Docente no encontrado" });
+        }
+        const ID_docente = docente.ID;
 
         const solicitudFound = await Solicitudes.findOne({
             where: {
-                nroCedula_docente: solicitud.nroCedula_docente,
+                ID_docente: ID_docente,
                 fecha_inicio: solicitud.fecha_inicio,
                 fecha_fin: solicitud.fecha_fin,
                 motivo: solicitud.motivo,
@@ -19,6 +24,9 @@ const createSolicitud = async (req, res) => {
         if (solicitudFound) {
             return res.status(400).json({ message: 'Esta solicitud ya fue hecha para ese rango y sección.' });
         }
+
+        delete solicitud.nroCedula_docente;
+        solicitud.ID_docente = ID_docente;
 
         const nuevaSolicitud = await Solicitudes.create(solicitud);
 
@@ -120,10 +128,15 @@ const getSolicitudesByDocente = async (req, res) => {
 
     try {
         const nroCedula = req.user.nroCedula
+        const docente = await Docente.findOne( {where: { nroCedula: nroCedula}} );
+        if (!docente) {
+          return res.status(404).json({ message: "Docente no encontrado" });
+        }
+        const ID_docente = docente.ID;
 
         const solicitudes = await Solicitudes.findAll({
             where: {
-                nroCedula_docente: nroCedula
+                ID_docente: ID_docente,
             },
             include: [
                 {
@@ -169,10 +182,15 @@ const getAllSolicitud = async (req, res) => {
 const getUltimaSolicitud = async (req, res) => {
     try {
         const nroCedula = req.user.nroCedula;
+        const docente = await Docente.findOne( {where: { nroCedula: nroCedula}} );
+        if (!docente) {
+          return res.status(404).json({ message: "Docente no encontrado" });
+        }
+        const ID_docente = docente.ID;
 
         const solicitud = await Solicitudes.findOne({
             where: {
-                nroCedula_docente: nroCedula,
+                ID_docente: ID_docente,
                 estado: "Aceptada"
                 // puedes agregar aquí: descripcion: "parcial1_quim1" si quieres filtrar
             },

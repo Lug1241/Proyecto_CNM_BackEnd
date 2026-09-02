@@ -143,13 +143,13 @@ const Asignacion = sequelize.define("Asignacion", {
     }
   }
     })
-Docente.belongsToMany(Materia, { through: { model: Asignacion, unique: false }, foreignKey: { name: "nroCedula_docente", allowNull: false } })
+Docente.belongsToMany(Materia, { through: { model: Asignacion, unique: false }, foreignKey: { name: "ID_docente", allowNull: false } })
 Materia.belongsToMany(Docente, { through: { model: Asignacion, unique: false }, foreignKey: { name: "ID_materia", allowNull: false } })
 
 
 
 // Permite incluir directamente datos de Docente y Materia desde Asignación
-Asignacion.belongsTo(Docente, { foreignKey: "nroCedula_docente", targetKey: "nroCedula" });
+Asignacion.belongsTo(Docente, { foreignKey: "ID_docente", targetKey: "ID" });
 Asignacion.belongsTo(Materia, { as: "materiaDetalle", foreignKey: "ID_materia", targetKey: "ID" });
 //no borrar as materiaDetalle se necesita para el getAll de asignacion
 // Permite incluir directamente datos de Materia desde Asignación

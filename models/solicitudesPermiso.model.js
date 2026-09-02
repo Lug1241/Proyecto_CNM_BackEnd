@@ -85,15 +85,15 @@ const SolicitudesPermiso = sequelize.define("SolicitudesPermiso", {
 
 // Relación
 Docente.hasMany(SolicitudesPermiso, {
-    foreignKey: 'nroCedula_docente',
-    sourceKey: 'nroCedula'
+    foreignKey: 'ID_docente',
+    sourceKey: 'ID'
 });
 SolicitudesPermiso.belongsTo(Docente, {
     foreignKey: {
-        name: 'nroCedula_docente',
+        name: 'ID_docente',
         allowNull: false
     },
-    targetKey: 'nroCedula'
+    targetKey: 'ID'
 });
 
 module.exports = SolicitudesPermiso;
