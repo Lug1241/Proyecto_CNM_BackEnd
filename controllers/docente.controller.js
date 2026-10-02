@@ -1,9 +1,8 @@
-
 const bcrypt = require("bcryptjs")
 const Docente = require('../models/docente.model')
 const crypto = require("crypto")
 const { enviarContrasenia } = require("../utils/enivarCorreo")
-const { Op, Sequelize, where } = require('sequelize'); // Asegúrate de tenerlo al inicio
+const { Op, Sequelize, where } = require('sequelize');
 
 const createDocente = async (req, res) => {
     try {
@@ -59,41 +58,45 @@ const createDocente = async (req, res) => {
 
     }
 }
+
 const editDocente = async (req, res) => {
     try {
-        const docente = req.body
-        const nroCedula = req.params.cedula
-        // Si se está actualizando la password, hashearla
+        const docente = req.body;
+        const nroCedula = req.params.cedula;
+        
         const docenteExistente = await Docente.findOne({ where: { nroCedula: nroCedula } });
         if (!docenteExistente) {
-            return res.status(404).json({ message: "Docente no encontrado" })
+            return res.status(404).json({ message: "Docente no encontrado" });
         }
+
+        // Solo hashear la contraseña si se está enviando una nueva en la petición
         if (docente.password) {
             const salt = await bcrypt.genSalt(10);
             docente.password = await bcrypt.hash(docente.password, salt);
         }
-        if (docente.email !== docenteExistente.email) {
+
+        // VALIDACIÓN CORREGIDA: Solo entra si viene el email en la petición Y es diferente al actual
+        if (docente.email && docente.email !== docenteExistente.email) {
             const provicional = crypto.randomBytes(8).toString('hex').slice(0, 8);
-            docente.password = provicional
+            docente.password = provicional;
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(docente.password, salt);
-            docente.password = hashedPassword
-            await enviarContrasenia(docente.email, provicional)
+            docente.password = hashedPassword;
+            await enviarContrasenia(docente.email, provicional);
         }
         
-        const [updatedRows] = await Docente.update(docente, { where: { nroCedula } })
+        const [updatedRows] = await Docente.update(docente, { where: { nroCedula } });
         if (updatedRows === 0) {
-            return res.status(404).json({ message: "No se puedo actualizar el docente" })
+            return res.status(404).json({ message: "No se puedo actualizar el docente" });
         }
+        
         const docenteEdited = await Docente.findOne({ where: { nroCedula: nroCedula } });
         
-        const { password: _, ...result } = docenteEdited.toJSON()
-        return res.status(200).json(result)
+        const { password: _, ...result } = docenteEdited.toJSON();
+        return res.status(200).json(result);
     } catch (error) {
-        console.error("Error al editar docente", error)
+        console.error("Error al editar docente", error);
         if (error.name === "SequelizeValidationError") {
-            console.log("Estos son los errores", error);
-
             const errEncontrado = error.errors.find(err =>
                 err.validatorKey === "notEmpty" ||
                 err.validatorKey === "isNumeric" ||
@@ -112,16 +115,13 @@ const editDocente = async (req, res) => {
         if (error.name === "SequelizeUniqueConstraintError") {
             const errEncontrado = error.errors.find(err =>
                 err.validatorKey === "not_unique"
-
             );
             if (errEncontrado) {
                 return res.status(400).json({ message: `${errEncontrado.path} debe ser único` });
             }
-
         }
 
-        return res.status(500).json({ message: `Error al editar docente en el servidor:` })
-
+        return res.status(500).json({ message: `Error al editar docente en el servidor:` });
     }
 }
 const getDocente = async (req, res) => {
@@ -140,6 +140,7 @@ const getDocente = async (req, res) => {
         return res.status(500).json({ message: `Error al obtener docente en el servidor:` })
     }
 }
+
 const getDocentes = async (req, res) => {
     try {
         let { page = 1, limit = 10, search = '' } = req.query;
@@ -235,10 +236,45 @@ const eliminarDocente = async (req, res) => {
         return res.status(500).json({ message: `Error al eliminar docente en el servidor:` })
     }
 }
+
+const getDocentesPorNombreOApellido = async (req, res) => {
+    try {
+        const { busqueda } = req.params;
+
+        const docentes = await Docente.findAll({
+            where: {
+                [Op.or]: [
+                    Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('primer_nombre')), {
+                        [Op.like]: `%${busqueda.toLowerCase()}%`
+                    }),
+                    Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('primer_apellido')), {
+                        [Op.like]: `%${busqueda.toLowerCase()}%`
+                    })
+                ]
+            }
+        });
+
+        if (!docentes || docentes.length === 0) {
+            return res.status(404).json({ message: "No se encontraron docentes con ese nombre o apellido" });
+        }
+
+        const resultados = docentes.map(docente => {
+            const { password: _, ...result } = docente.toJSON();
+            return result;
+        });
+
+        return res.status(200).json(resultados);
+    } catch (error) {
+        console.error("Error al obtener docentes", error);
+        return res.status(500).json({ message: "Error al obtener docentes en el servidor" });
+    }
+};
+
 module.exports = {
     createDocente,
     editDocente,
     getDocente,
     getDocentes,
-    eliminarDocente
+    eliminarDocente,
+    getDocentesPorNombreOApellido
 }
