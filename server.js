@@ -18,7 +18,6 @@ require('./models/periodo_academico.model')
 require('./models/representante.model')
 require('./models/solicitudesPermiso.model')
 
-
 const express = require('express')
 const cors = require('cors')
 
@@ -33,22 +32,58 @@ app.use(cors({
 }));
 
 const port = 8000;
+let server; // Declaramos la variable globalmente para poder cerrarla luego
+
 const startServer = async () => {
     try {
-        const mensaje = await sequelize.conexion(); // Espera a que la BD se sincronice
+        const mensaje = await sequelize.conexion(); 
         console.log(mensaje);
 
-        // Una vez sincronizada, inicia el servidor
         const [results] = await sequelize.sequelize.query("SHOW TABLES");
         console.log("Tablas disponibles:", results);
-        await reprogramarPeriodosPendientes()
-        app.listen(port, "0.0.0.0", () => {
-            console.log("Server listening at port", port);
+        await reprogramarPeriodosPendientes();
+        
+        server = app.listen(port, "0.0.0.0", () => {
+            console.log("✅ Server listening at port", port);
         });
+
+        // Si el puerto está ocupado, avisamos claramente y detenemos el proceso
+        server.on('error', (e) => {
+            if (e.code === 'EADDRINUSE') {
+                console.error(`❌ El puerto ${port} está ocupado. Ejecuta 'taskkill /F /IM node.exe' en otra terminal para liberarlo.`);
+                process.exit(1);
+            }
+        });
+
     } catch (error) {
         console.error("Error al sincronizar la base de datos:", error);
     }
 };
+
+// =========================================================
+// GESTIÓN DE APAGADO ELEGANTE (Registrado UNA SOLA VEZ)
+// =========================================================
+const gracefulShutdown = () => {
+    if (server) {
+        console.log("\n⏳ Cerrando el servidor y liberando el puerto 8000...");
+        server.close(() => {
+            console.log("✅ Puerto liberado. Adiós.");
+            process.exit(0);
+        });
+    } else {
+        process.exit(0);
+    }
+};
+
+// Capturamos las señales de cierre de Nodemon, Node --watch y Ctrl+C
+process.once('SIGUSR2', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
+
+
+// =========================================================
+// RUTAS
+// =========================================================
 const allDocente = require('./routes/docente.routes')
 allDocente(app)
 
@@ -66,7 +101,7 @@ allMateria(app)
 
 const allPeriodos = require('./routes/periodo_academico.routes')
 allPeriodos(app)
-// Llamar a la función para iniciar
+
 const allEstudiantes = require('./routes/estudiante.routes')
 allEstudiantes(app)
 
@@ -97,6 +132,4 @@ AllFiles(app)
 const AllAlertas = require('./routes/alertas.routes')
 AllAlertas(app)
 
-
 startServer();
-
